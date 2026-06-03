@@ -1,0 +1,60 @@
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.DotSettings
+*.sln.DotSettings.user
+
+# Build results
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.mdb
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+# ReSharper
+.idea/
+*.ReSharper
+*.ReSharper.user
+_ReSharper*
+
+# Entity Framework
+*.db
+*.db-shm
+*.db-wal
+Migrations/
+
+# IDE and Editor files
+.DS_Store
+*.swp
+*.swo
+*~
+.editorconfig
+
+# Environment and configuration
+appsettings.Development.json
+appsettings.local.json
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker-compose.override.yml
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
