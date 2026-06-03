@@ -29,7 +29,6 @@ _ReSharper*
 *.db
 *.db-shm
 *.db-wal
-Migrations/
 
 # IDE and Editor files
 .DS_Store
