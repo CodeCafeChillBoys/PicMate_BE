@@ -8,6 +8,7 @@ using PhoneGrapher.Infrastructure.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
 // Add services to the container.
 
 builder.Services.AddControllers();
