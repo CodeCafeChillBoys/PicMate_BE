@@ -54,6 +54,19 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
         return profiles.Select(x => x.ToSummaryResponse()).ToArray();
     }
 
+    public async Task<GrapherDetailResponse> GetProfileAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var profile = await IncludeSummary(dbContext.GrapherProfiles.AsNoTracking())
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            
+        if (profile is null)
+        {
+            throw new KeyNotFoundException($"Grapher profile with ID {id} not found.");
+        }
+
+        return profile.ToDetailResponse();
+    }
+
     public async Task<GrapherSummaryResponse> UpsertProfileAsync(Guid userId, UpsertGrapherProfileRequest request, CancellationToken cancellationToken = default)
     {
         var user = await dbContext.Users

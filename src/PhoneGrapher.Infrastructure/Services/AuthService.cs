@@ -106,9 +106,9 @@ public sealed class AuthService(
     {
         return role switch
         {
-            UserRole.Admin => "/admin",
+            UserRole.Admin => "/admin-dashboard",
             UserRole.Grapher => "/photographer-dashboard",
-            _ => "/dashboard"
+            _ => "/customer-dashboard"
         };
     }
 }

@@ -16,11 +16,16 @@ public interface IBookingService
     Task<VnPayCallbackResult> HandleVnPayCallbackAsync(IReadOnlyDictionary<string, string> query, CancellationToken cancellationToken = default);
     Task<CompleteBookingResponse> CompleteBookingAsync(Guid bookingId, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<BookingResponse>> GetBookingsForUserAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GrapherBookingResponse>> GetBookingsForGrapherAsync(Guid userId, string? status, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CustomerBookingResponse>> GetBookingsByCustomerIdAsync(Guid customerId, string? status, CancellationToken cancellationToken = default);
+    Task<BookingDetailResponse> GetBookingDetailAsync(Guid bookingId, Guid userId, CancellationToken cancellationToken = default);
+    Task CancelBookingAsync(Guid bookingId, Guid userId, CancelBookingRequest request, CancellationToken cancellationToken = default);
 }
 
 public interface IGrapherService
 {
     Task<IReadOnlyList<GrapherSummaryResponse>> SearchAsync(GrapherSearchRequest request, CancellationToken cancellationToken = default);
+    Task<GrapherDetailResponse> GetProfileAsync(Guid id, CancellationToken cancellationToken = default);
     Task<GrapherSummaryResponse> UpsertProfileAsync(Guid userId, UpsertGrapherProfileRequest request, CancellationToken cancellationToken = default);
     Task ApproveKycAsync(Guid grapherProfileId, bool approved, CancellationToken cancellationToken = default);
 }

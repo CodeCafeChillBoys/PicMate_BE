@@ -33,4 +33,70 @@ public sealed class BookingsController(IBookingService bookingService) : Control
     {
         return Ok(await bookingService.CompleteBookingAsync(id, User.GetUserId(), cancellationToken));
     }
+
+    [HttpGet("my-orders")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<ActionResult<IReadOnlyList<GrapherBookingResponse>>> MyOrders(
+        [FromQuery] string? status,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await bookingService.GetBookingsForGrapherAsync(User.GetUserId(), status, cancellationToken));
+    }
+
+    [HttpGet("customer/{customerId:guid}")]
+    [Authorize]
+    public async Task<ActionResult<IReadOnlyList<CustomerBookingResponse>>> CustomerOrders(
+        Guid customerId,
+        [FromQuery] string? status,
+        CancellationToken cancellationToken)
+    {
+        // Customers can only see their own orders, Admins can see anyone's
+        if (!User.IsInRole("Admin") && User.GetUserId() != customerId)
+        {
+            return Forbid();
+        }
+
+        return Ok(await bookingService.GetBookingsByCustomerIdAsync(customerId, status, cancellationToken));
+    }
+
+    [HttpGet("{id:guid}/detail")]
+    [Authorize]
+    public async Task<ActionResult<BookingDetailResponse>> GetDetail(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await bookingService.GetBookingDetailAsync(id, User.GetUserId(), cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpPost("{id:guid}/cancel")]
+    [Authorize]
+    public async Task<IActionResult> Cancel(Guid id, CancelBookingRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await bookingService.CancelBookingAsync(id, User.GetUserId(), request, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Error = ex.Message });
+        }
+    }
 }

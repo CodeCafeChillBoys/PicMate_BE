@@ -10,6 +10,7 @@ public sealed record GrapherSearchRequest(
 
 public sealed record GrapherSummaryResponse(
     Guid Id,
+    Guid UserId,
     string Name,
     string? Avatar,
     string Location,
@@ -22,6 +23,28 @@ public sealed record GrapherSummaryResponse(
     GrapherPricingResponse Pricing);
 
 public sealed record GrapherPricingResponse(decimal Hourly, decimal Daily);
+
+public sealed record GrapherDetailResponse(
+    Guid Id,
+    Guid UserId,
+    string Name,
+    string? Avatar,
+    string Location,
+    decimal Rating,
+    int ReviewCount,
+    bool IsOnline,
+    bool IsVerified,
+    string Bio,
+    IReadOnlyList<string> Styles,
+    IReadOnlyList<string> Portfolio,
+    IReadOnlyList<ServicePackageResponse> Packages);
+
+public sealed record ServicePackageResponse(
+    Guid Id,
+    string Name,
+    string Description,
+    decimal Price,
+    int DurationMinutes);
 
 public sealed record UpsertGrapherProfileRequest(
     string Bio,

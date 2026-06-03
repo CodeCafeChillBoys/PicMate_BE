@@ -24,6 +24,22 @@ public sealed class GraphersController(IGrapherService grapherService) : Control
         return Ok(await grapherService.SearchAsync(request, cancellationToken));
     }
 
+    [HttpGet("{id}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<GrapherDetailResponse>> GetProfile(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await grapherService.GetProfileAsync(id, cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
     [HttpPut("me")]
     [Authorize(Roles = "Grapher")]
     public async Task<ActionResult<GrapherSummaryResponse>> UpsertMyProfile(

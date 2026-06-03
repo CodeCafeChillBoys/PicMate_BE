@@ -11,9 +11,17 @@ public sealed class PaymentsController(IBookingService bookingService) : Control
 {
     [HttpGet("vnpay-return")]
     [AllowAnonymous]
-    public async Task<ActionResult<VnPayCallbackResult>> VnPayReturn(CancellationToken cancellationToken)
+    public async Task<IActionResult> VnPayReturn(CancellationToken cancellationToken)
     {
-        return Ok(await bookingService.HandleVnPayCallbackAsync(ToDictionary(), cancellationToken));
+        var result = await bookingService.HandleVnPayCallbackAsync(ToDictionary(), cancellationToken);
+        var frontendUrl = "http://localhost:5173/payment-result";
+        
+        if (result.Success)
+        {
+            return Redirect($"{frontendUrl}?payment=success&bookingId={result.BookingId}");
+        }
+        
+        return Redirect($"{frontendUrl}?payment=failed&message={Uri.EscapeDataString(result.Message)}");
     }
 
     [HttpGet("vnpay-ipn")]

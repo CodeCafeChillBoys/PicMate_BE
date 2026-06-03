@@ -31,9 +31,8 @@ public sealed class VnPayService(IOptions<VnPayOptions> options) : IVnPayService
             ["vnp_TxnRef"] = payment.TransactionCode
         };
 
-        var hashData = BuildQuery(parameters, encode: false);
-        var secureHash = ComputeHmacSha512(_options.HashSecret, hashData);
-        var query = BuildQuery(parameters, encode: true);
+        var query = BuildQuery(parameters);
+        var secureHash = ComputeHmacSha512(_options.HashSecret, query);
 
         return $"{_options.PaymentUrl}?{query}&vnp_SecureHash={secureHash}";
     }
@@ -52,18 +51,16 @@ public sealed class VnPayService(IOptions<VnPayOptions> options) : IVnPayService
             .OrderBy(x => x.Key, StringComparer.Ordinal)
             .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
 
-        var hashData = BuildQuery(filtered, encode: false);
+        var hashData = BuildQuery(filtered);
         var expected = ComputeHmacSha512(_options.HashSecret, hashData);
         return string.Equals(expected, secureHash, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string BuildQuery(IEnumerable<KeyValuePair<string, string>> parameters, bool encode)
+    private static string BuildQuery(IEnumerable<KeyValuePair<string, string>> parameters)
     {
-        return string.Join("&", parameters.Select(x =>
-        {
-            var value = encode ? WebUtility.UrlEncode(x.Value) : x.Value;
-            return $"{x.Key}={value}";
-        }));
+        return string.Join("&", parameters
+            .Where(x => !string.IsNullOrEmpty(x.Value))
+            .Select(x => $"{WebUtility.UrlEncode(x.Key)}={WebUtility.UrlEncode(x.Value)}"));
     }
 
     private static string ComputeHmacSha512(string key, string data)

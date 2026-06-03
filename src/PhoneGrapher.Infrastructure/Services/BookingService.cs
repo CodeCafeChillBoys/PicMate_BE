@@ -205,8 +205,160 @@ public sealed class BookingService(
             .ToArrayAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<GrapherBookingResponse>> GetBookingsForGrapherAsync(
+        Guid userId,
+        string? status,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = await dbContext.GrapherProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken)
+            ?? throw new InvalidOperationException("Grapher profile not found.");
+
+        var query = dbContext.Bookings
+            .AsNoTracking()
+            .Include(x => x.Customer)
+            .Include(x => x.ServicePackage)
+            .Where(x => x.GrapherProfileId == profile.Id);
+
+        if (!string.IsNullOrWhiteSpace(status)
+            && Enum.TryParse<BookingStatus>(status, ignoreCase: true, out var parsed))
+        {
+            query = query.Where(x => x.Status == parsed);
+        }
+
+        return await query
+            .OrderByDescending(x => x.ScheduledAt)
+            .Select(x => new GrapherBookingResponse(
+                x.Id,
+                x.Customer.FullName,
+                x.Customer.AvatarUrl,
+                x.ServicePackage.Name,
+                x.ScheduledAt,
+                x.DurationMinutes,
+                x.Location,
+                x.Note,
+                x.Status.ToString(),
+                x.TotalAmount,
+                x.GrapherPayoutAmount,
+                x.CreatedAt))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CustomerBookingResponse>> GetBookingsByCustomerIdAsync(
+        Guid customerId,
+        string? status,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Bookings
+            .AsNoTracking()
+            .Include(x => x.GrapherProfile)
+                .ThenInclude(p => p.User)
+            .Include(x => x.ServicePackage)
+            .Where(x => x.CustomerId == customerId);
+
+        if (!string.IsNullOrWhiteSpace(status)
+            && Enum.TryParse<BookingStatus>(status, ignoreCase: true, out var parsed))
+        {
+            query = query.Where(x => x.Status == parsed);
+        }
+
+        return await query
+            .OrderByDescending(x => x.ScheduledAt)
+            .Select(x => new CustomerBookingResponse(
+                x.Id,
+                x.GrapherProfile.User.FullName,
+                x.GrapherProfile.User.AvatarUrl,
+                x.ServicePackage.Name,
+                x.ScheduledAt,
+                x.DurationMinutes,
+                x.Location,
+                x.Note,
+                x.Status.ToString(),
+                x.TotalAmount,
+                x.CreatedAt))
+            .ToArrayAsync(cancellationToken);
+    }
+
     private static string CreateTransactionCode()
     {
         return $"PG{DateTimeOffset.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(100000, 999999)}";
+    }
+
+    public async Task<BookingDetailResponse> GetBookingDetailAsync(Guid bookingId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var booking = await dbContext.Bookings
+            .AsNoTracking()
+            .Include(x => x.Customer)
+            .Include(x => x.GrapherProfile)
+                .ThenInclude(p => p.User)
+            .Include(x => x.ServicePackage)
+            .FirstOrDefaultAsync(x => x.Id == bookingId, cancellationToken)
+            ?? throw new KeyNotFoundException("Booking not found.");
+
+        if (booking.CustomerId != userId && booking.GrapherProfile.UserId != userId)
+        {
+            var user = await dbContext.Users.FindAsync(userId);
+            if (user?.Role != UserRole.Admin)
+            {
+                throw new UnauthorizedAccessException("You don't have permission to view this booking.");
+            }
+        }
+
+        return new BookingDetailResponse(
+            booking.Id,
+            booking.GrapherProfile.User.FullName,
+            booking.Customer.FullName,
+            booking.ServicePackage.Name,
+            booking.ScheduledAt,
+            booking.DurationMinutes,
+            booking.Location,
+            booking.Note,
+            booking.Status.ToString(),
+            booking.TotalAmount,
+            booking.PlatformFeeAmount,
+            booking.GrapherPayoutAmount,
+            booking.CreatedAt,
+            booking.CancellationReason);
+    }
+
+    public async Task CancelBookingAsync(Guid bookingId, Guid userId, CancelBookingRequest request, CancellationToken cancellationToken = default)
+    {
+        var booking = await dbContext.Bookings
+            .Include(x => x.GrapherProfile)
+            .Include(x => x.PaymentTransaction)
+            .FirstOrDefaultAsync(x => x.Id == bookingId, cancellationToken)
+            ?? throw new KeyNotFoundException("Booking not found.");
+
+        if (booking.CustomerId != userId && booking.GrapherProfile.UserId != userId)
+        {
+            var user = await dbContext.Users.FindAsync(userId);
+            if (user?.Role != UserRole.Admin)
+            {
+                throw new UnauthorizedAccessException("You don't have permission to cancel this booking.");
+            }
+        }
+
+        if (booking.Status is BookingStatus.Completed or BookingStatus.Cancelled)
+        {
+            throw new InvalidOperationException("Booking is already completed or cancelled.");
+        }
+
+        await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        booking.Status = BookingStatus.Cancelled;
+        booking.CancellationReason = request.Reason?.Trim();
+        booking.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var payment = booking.PaymentTransaction;
+        if (payment != null && payment.Status == PaymentStatus.Succeeded && payment.EscrowStatus == EscrowStatus.Held)
+        {
+            // Logic for refund would go here. For now, mark escrow as returned.
+            payment.EscrowStatus = EscrowStatus.Refunded;
+            payment.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await tx.CommitAsync(cancellationToken);
     }
 }
