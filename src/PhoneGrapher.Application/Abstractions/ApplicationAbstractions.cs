@@ -38,6 +38,11 @@ public interface IBootstrapService
 public interface IAdminService
 {
     Task<RevenueSummaryResponse> GetRevenueSummaryAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AdminUserResponse>> GetAllUsersAsync(string? search, string? role, CancellationToken cancellationToken = default);
+    Task<AdminUserResponse> ToggleUserStatusAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AdminPendingGrapherResponse>> GetPendingGraphersAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AdminBookingResponse>> GetAllBookingsAsync(string? status, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AdminActivityResponse>> GetRecentActivitiesAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IJwtTokenService
