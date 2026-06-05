@@ -67,6 +67,7 @@ public sealed record VnPayCallbackResult(
 
 public sealed record GrapherBookingResponse(
     Guid Id,
+    Guid CustomerId,
     string CustomerName,
     string? CustomerAvatar,
     string ServiceName,
@@ -81,6 +82,7 @@ public sealed record GrapherBookingResponse(
 
 public sealed record CustomerBookingResponse(
     Guid Id,
+    Guid GrapherUserId,
     string GrapherName,
     string? GrapherAvatar,
     string ServiceName,

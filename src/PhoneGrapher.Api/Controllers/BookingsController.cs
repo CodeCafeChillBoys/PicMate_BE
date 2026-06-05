@@ -99,4 +99,50 @@ public sealed class BookingsController(IBookingService bookingService) : Control
             return BadRequest(new { Error = ex.Message });
         }
     }
+
+    [HttpPost("{id:guid}/confirm")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<IActionResult> Confirm(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await bookingService.ConfirmBookingAsync(id, User.GetUserId(), cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Error = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/start")]
+    [Authorize(Roles = "Customer")]
+    public async Task<IActionResult> Start(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await bookingService.StartBookingAsync(id, User.GetUserId(), cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Error = ex.Message });
+        }
+    }
 }

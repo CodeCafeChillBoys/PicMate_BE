@@ -200,7 +200,7 @@ public sealed class BookingService(
         };
 
         return await query
-            .OrderByDescending(x => x.ScheduledAt)
+            .OrderByDescending(x => x.CreatedAt)
             .Select(x => x.ToResponse())
             .ToArrayAsync(cancellationToken);
     }
@@ -228,9 +228,10 @@ public sealed class BookingService(
         }
 
         return await query
-            .OrderByDescending(x => x.ScheduledAt)
+            .OrderByDescending(x => x.CreatedAt)
             .Select(x => new GrapherBookingResponse(
                 x.Id,
+                x.CustomerId,
                 x.Customer.FullName,
                 x.Customer.AvatarUrl,
                 x.ServicePackage.Name,
@@ -264,9 +265,10 @@ public sealed class BookingService(
         }
 
         return await query
-            .OrderByDescending(x => x.ScheduledAt)
+            .OrderByDescending(x => x.CreatedAt)
             .Select(x => new CustomerBookingResponse(
                 x.Id,
+                x.GrapherProfile.UserId,
                 x.GrapherProfile.User.FullName,
                 x.GrapherProfile.User.AvatarUrl,
                 x.ServicePackage.Name,
@@ -360,5 +362,58 @@ public sealed class BookingService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);
+    }
+
+    public async Task ConfirmBookingAsync(Guid bookingId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var booking = await dbContext.Bookings
+            .Include(x => x.GrapherProfile)
+            .FirstOrDefaultAsync(x => x.Id == bookingId, cancellationToken)
+            ?? throw new KeyNotFoundException("Booking not found.");
+
+        if (booking.GrapherProfile.UserId != userId)
+        {
+            var user = await dbContext.Users.FindAsync(userId);
+            if (user?.Role != UserRole.Admin)
+            {
+                throw new UnauthorizedAccessException("You don't have permission to confirm this booking.");
+            }
+        }
+
+        if (booking.Status != BookingStatus.PendingConfirmation)
+        {
+            throw new InvalidOperationException("Booking must be in PendingConfirmation status to be confirmed.");
+        }
+
+        booking.Status = BookingStatus.Confirmed;
+        booking.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task StartBookingAsync(Guid bookingId, Guid customerUserId, CancellationToken cancellationToken = default)
+    {
+        var booking = await dbContext.Bookings
+            .FirstOrDefaultAsync(x => x.Id == bookingId, cancellationToken)
+            ?? throw new KeyNotFoundException("Booking not found.");
+
+        if (booking.CustomerId != customerUserId)
+        {
+            var user = await dbContext.Users.FindAsync(customerUserId);
+            if (user?.Role != UserRole.Admin)
+            {
+                throw new UnauthorizedAccessException("You don't have permission to start this booking.");
+            }
+        }
+
+        if (booking.Status != BookingStatus.Confirmed)
+        {
+            throw new InvalidOperationException("Booking must be in Confirmed status to be started.");
+        }
+
+        booking.Status = BookingStatus.InProgress;
+        booking.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

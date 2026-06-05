@@ -42,10 +42,26 @@ public sealed class GraphersController(IGrapherService grapherService) : Control
 
     [HttpPut("me")]
     [Authorize(Roles = "Grapher")]
-    public async Task<ActionResult<GrapherSummaryResponse>> UpsertMyProfile(
-        UpsertGrapherProfileRequest request,
+    public async Task<IActionResult> UpsertMyProfile(
+        [FromBody] UpsertGrapherProfileRequest request,
         CancellationToken cancellationToken)
     {
-        return Ok(await grapherService.UpsertProfileAsync(User.GetUserId(), request, cancellationToken));
+        try
+        {
+            var response = await grapherService.UpsertProfileAsync(User.GetUserId(), request, cancellationToken);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Error = "UpsertException: " + ex.ToString() });
+        }
+    }
+
+    [HttpPost("me/seed-packages")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<ActionResult<IReadOnlyList<ServicePackageResponse>>> SeedDefaultPackages(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await grapherService.SeedDefaultPackagesAsync(User.GetUserId(), cancellationToken));
     }
 }

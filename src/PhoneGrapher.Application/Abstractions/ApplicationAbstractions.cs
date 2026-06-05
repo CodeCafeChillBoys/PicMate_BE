@@ -20,6 +20,8 @@ public interface IBookingService
     Task<IReadOnlyList<CustomerBookingResponse>> GetBookingsByCustomerIdAsync(Guid customerId, string? status, CancellationToken cancellationToken = default);
     Task<BookingDetailResponse> GetBookingDetailAsync(Guid bookingId, Guid userId, CancellationToken cancellationToken = default);
     Task CancelBookingAsync(Guid bookingId, Guid userId, CancelBookingRequest request, CancellationToken cancellationToken = default);
+    Task ConfirmBookingAsync(Guid bookingId, Guid userId, CancellationToken cancellationToken = default);
+    Task StartBookingAsync(Guid bookingId, Guid customerUserId, CancellationToken cancellationToken = default);
 }
 
 public interface IGrapherService
@@ -28,6 +30,7 @@ public interface IGrapherService
     Task<GrapherDetailResponse> GetProfileAsync(Guid id, CancellationToken cancellationToken = default);
     Task<GrapherSummaryResponse> UpsertProfileAsync(Guid userId, UpsertGrapherProfileRequest request, CancellationToken cancellationToken = default);
     Task ApproveKycAsync(Guid grapherProfileId, bool approved, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ServicePackageResponse>> SeedDefaultPackagesAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
 public interface IReviewService

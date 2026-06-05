@@ -103,8 +103,28 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
             .ToList();
         dbContext.GrapherPortfolioItems.AddRange(portfolioItems);
 
-        dbContext.GrapherServicePackages.RemoveRange(profile.ServicePackages);
-        var servicePackages = request.ServicePackages
+        // Merge ServicePackages to avoid FK violations with Bookings
+        var existingPackages = profile.ServicePackages.ToList();
+        foreach (var existing in existingPackages)
+        {
+            var updated = request.ServicePackages.FirstOrDefault(x => x.Id == existing.Id);
+            if (updated == null)
+            {
+                // Mark as inactive instead of deleting to prevent FK errors with existing bookings
+                existing.IsActive = false;
+            }
+            else
+            {
+                existing.Name = updated.Name.Trim();
+                existing.Description = updated.Description.Trim();
+                existing.Price = updated.Price;
+                existing.DurationMinutes = updated.DurationMinutes;
+                existing.IsActive = true;
+            }
+        }
+
+        var newPackages = request.ServicePackages
+            .Where(x => x.Id == null || !existingPackages.Any(e => e.Id == x.Id))
             .Select(x => new GrapherServicePackage
             {
                 Id = x.Id ?? Guid.NewGuid(),
@@ -114,9 +134,8 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
                 Price = x.Price,
                 DurationMinutes = x.DurationMinutes,
                 IsActive = true
-            })
-            .ToList();
-        dbContext.GrapherServicePackages.AddRange(servicePackages);
+            });
+        dbContext.GrapherServicePackages.AddRange(newPackages);
 
         dbContext.GrapherStyleTags.RemoveRange(profile.StyleTags);
         var styleLinks = new List<GrapherStyleTag>();
@@ -149,6 +168,61 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
         profile.IsVerified = approved;
         profile.UpdatedAt = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ServicePackageResponse>> SeedDefaultPackagesAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var profile = await dbContext.GrapherProfiles
+            .Include(x => x.ServicePackages)
+            .FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken)
+            ?? throw new InvalidOperationException("Grapher profile not found.");
+
+        if (profile.ServicePackages.Any(p => p.IsActive))
+        {
+            // Already has packages, just return them
+            return profile.ServicePackages
+                .Where(p => p.IsActive)
+                .Select(p => new ServicePackageResponse(p.Id, p.Name, p.Description, p.Price, p.DurationMinutes))
+                .ToArray();
+        }
+
+        var defaults = new List<GrapherServicePackage>
+        {
+            new()
+            {
+                GrapherProfileId = profile.Id,
+                Name = "Chụp ngoại cảnh",
+                Description = "Một giờ chụp bằng điện thoại ngoài trời, nhận ảnh trong ngày.",
+                Price = 150000m,
+                DurationMinutes = 60,
+                IsActive = true
+            },
+            new()
+            {
+                GrapherProfileId = profile.Id,
+                Name = "Chụp Studio",
+                Description = "Một giờ chụp bằng điện thoại trong studio, nhận ảnh trong ngày.",
+                Price = 200000m,
+                DurationMinutes = 60,
+                IsActive = true
+            },
+            new()
+            {
+                GrapherProfileId = profile.Id,
+                Name = "Chụp sự kiện",
+                Description = "Hai giờ chụp sự kiện bằng điện thoại, nhận ảnh trong 24h.",
+                Price = 350000m,
+                DurationMinutes = 120,
+                IsActive = true
+            }
+        };
+
+        dbContext.GrapherServicePackages.AddRange(defaults);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return defaults
+            .Select(p => new ServicePackageResponse(p.Id, p.Name, p.Description, p.Price, p.DurationMinutes))
+            .ToArray();
     }
 
     private static IQueryable<GrapherProfile> IncludeSummary(IQueryable<GrapherProfile> query)
