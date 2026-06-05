@@ -95,9 +95,52 @@ public sealed record BootstrapResponse(
     IReadOnlyList<object> MockMessages,
     IReadOnlyList<Guid> FavoritePhotographerIds);
 
+public sealed record MonthlyRevenueItem(int Month, string Label, decimal GrossRevenue, decimal PlatformRevenue, int BookingCount);
+
 public sealed record RevenueSummaryResponse(
     decimal GrossRevenue,
     decimal PlatformRevenue,
     decimal GrapherPayouts,
     int CompletedBookings,
-    int PendingKycCount);
+    int PendingKycCount,
+    int TotalUsers,
+    int TotalGraphers,
+    int BookingsThisMonth,
+    decimal RevenueThisMonth,
+    IReadOnlyList<MonthlyRevenueItem> MonthlyRevenue);
+
+// ── Admin management DTOs ──────────────────────────────────────────────────
+
+public sealed record AdminUserResponse(
+    Guid Id,
+    string Name,
+    string Email,
+    string Role,
+    string JoinDate,
+    int TotalBookings,
+    bool IsActive);
+
+public sealed record AdminPendingGrapherResponse(
+    Guid Id,
+    string Name,
+    string? Avatar,
+    IReadOnlyList<string> Styles,
+    int PortfolioCount,
+    string Location,
+    string AppliedDate);
+
+public sealed record AdminBookingResponse(
+    Guid Id,
+    string PhotographerName,
+    string? PhotographerAvatar,
+    string Service,
+    string Date,
+    string Location,
+    decimal Total,
+    string Status);
+
+public sealed record AdminActivityResponse(
+    string Id,
+    string Icon,
+    string Text,
+    string Time);
