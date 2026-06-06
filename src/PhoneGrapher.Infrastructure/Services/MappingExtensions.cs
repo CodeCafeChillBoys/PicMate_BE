@@ -51,6 +51,7 @@ internal static class MappingExtensions
 
         return new GrapherSummaryResponse(
             profile.Id,
+            profile.UserId,
             profile.User.FullName,
             profile.User.AvatarUrl,
             profile.Location,
@@ -61,5 +62,32 @@ internal static class MappingExtensions
             profile.StyleTags.Select(x => x.StyleTag.Name).OrderBy(x => x).ToArray(),
             profile.PortfolioItems.OrderBy(x => x.DisplayOrder).Select(x => x.ImageUrl).ToArray(),
             new GrapherPricingResponse(hourly, daily == 0 ? hourly : daily));
+    }
+
+    public static GrapherDetailResponse ToDetailResponse(this GrapherProfile profile)
+    {
+        return new GrapherDetailResponse(
+            profile.Id,
+            profile.UserId,
+            profile.User.FullName,
+            profile.User.AvatarUrl,
+            profile.Location,
+            profile.AverageRating,
+            profile.ReviewCount,
+            profile.IsOnline,
+            profile.IsVerified,
+            profile.Bio,
+            profile.StyleTags.Select(x => x.StyleTag.Name).OrderBy(x => x).ToArray(),
+            profile.PortfolioItems.OrderBy(x => x.DisplayOrder).Select(x => x.ImageUrl).ToArray(),
+            profile.ServicePackages
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Price)
+                .Select(x => new ServicePackageResponse(
+                    x.Id,
+                    x.Name,
+                    x.Description,
+                    x.Price,
+                    x.DurationMinutes))
+                .ToArray());
     }
 }

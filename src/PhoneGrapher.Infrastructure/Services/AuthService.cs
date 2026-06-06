@@ -45,7 +45,34 @@ public sealed class AuthService(
             user.GrapherProfile = new GrapherProfile
             {
                 Bio = string.Empty,
-                Location = string.Empty
+                Location = string.Empty,
+                ServicePackages = new List<GrapherServicePackage>
+                {
+                    new()
+                    {
+                        Name = "Chụp ngoại cảnh",
+                        Description = "Một giờ chụp bằng điện thoại ngoài trời, nhận ảnh trong ngày.",
+                        Price = 150000m,
+                        DurationMinutes = 60,
+                        IsActive = true
+                    },
+                    new()
+                    {
+                        Name = "Chụp Studio",
+                        Description = "Một giờ chụp bằng điện thoại trong studio, nhận ảnh trong ngày.",
+                        Price = 200000m,
+                        DurationMinutes = 60,
+                        IsActive = true
+                    },
+                    new()
+                    {
+                        Name = "Chụp sự kiện",
+                        Description = "Hai giờ chụp sự kiện bằng điện thoại, nhận ảnh trong 24h.",
+                        Price = 350000m,
+                        DurationMinutes = 120,
+                        IsActive = true
+                    }
+                }
             };
         }
 
@@ -106,9 +133,9 @@ public sealed class AuthService(
     {
         return role switch
         {
-            UserRole.Admin => "/admin",
+            UserRole.Admin => "/admin-dashboard",
             UserRole.Grapher => "/photographer-dashboard",
-            _ => "/dashboard"
+            _ => "/customer-dashboard"
         };
     }
 }

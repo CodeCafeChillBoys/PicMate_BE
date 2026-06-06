@@ -168,3 +168,14 @@ public sealed class Preset : Entity
     public int DownloadCount { get; set; }
     public bool IsActive { get; set; } = true;
 }
+
+public sealed class Message : Entity
+{
+    public Guid SenderId { get; set; }
+    public Guid ReceiverId { get; set; }
+    public string Content { get; set; } = string.Empty;
+    public bool IsRead { get; set; }
+
+    public User Sender { get; set; } = null!;
+    public User Receiver { get; set; } = null!;
+}

@@ -25,3 +25,7 @@ public sealed record CurrentUserResponse(
     string Email,
     string Role,
     string? AvatarUrl);
+
+public sealed record UpdateUserProfileRequest(
+    string FullName,
+    string? AvatarUrl);

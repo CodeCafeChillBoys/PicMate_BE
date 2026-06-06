@@ -24,12 +24,44 @@ public sealed class GraphersController(IGrapherService grapherService) : Control
         return Ok(await grapherService.SearchAsync(request, cancellationToken));
     }
 
-    [HttpPut("me")]
-    [Authorize(Roles = "Grapher")]
-    public async Task<ActionResult<GrapherSummaryResponse>> UpsertMyProfile(
-        UpsertGrapherProfileRequest request,
+    [HttpGet("{id}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<GrapherDetailResponse>> GetProfile(
+        Guid id,
         CancellationToken cancellationToken)
     {
-        return Ok(await grapherService.UpsertProfileAsync(User.GetUserId(), request, cancellationToken));
+        try
+        {
+            return Ok(await grapherService.GetProfileAsync(id, cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpPut("me")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<IActionResult> UpsertMyProfile(
+        [FromBody] UpsertGrapherProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await grapherService.UpsertProfileAsync(User.GetUserId(), request, cancellationToken);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Error = "UpsertException: " + ex.ToString() });
+        }
+    }
+
+    [HttpPost("me/seed-packages")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<ActionResult<IReadOnlyList<ServicePackageResponse>>> SeedDefaultPackages(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await grapherService.SeedDefaultPackagesAsync(User.GetUserId(), cancellationToken));
     }
 }

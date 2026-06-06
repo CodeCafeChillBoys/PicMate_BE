@@ -18,6 +18,7 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Preset> Presets => Set<Preset>();
+    public DbSet<Message> Messages => Set<Message>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -187,6 +188,20 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
             entity.Property(x => x.ImageUrl).HasMaxLength(1024);
             entity.Property(x => x.DownloadUrl).HasMaxLength(1024);
             entity.Property(x => x.Rating).HasPrecision(3, 2);
+        });
+
+        modelBuilder.Entity<Message>(entity =>
+        {
+            entity.ToTable("messages");
+            entity.Property(x => x.Content).HasMaxLength(2000).IsRequired();
+            entity.HasOne(x => x.Sender)
+                .WithMany()
+                .HasForeignKey(x => x.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Receiver)
+                .WithMany()
+                .HasForeignKey(x => x.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         Seed(modelBuilder);
