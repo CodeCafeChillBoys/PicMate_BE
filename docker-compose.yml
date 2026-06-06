@@ -1,17 +1,40 @@
-﻿version: '3.9'
-services:
-  postgres:
-    image: postgres:16
-    container_name: picmate-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 12345
-      POSTGRES_DB: picmate_db_dev
-    ports:
-      - '5432:5432'
-    volumes:
-      - picmate_pg_data:/var/lib/postgresql/data
+version: "3.9"
 
-volumes:
-  picmate_pg_data:
+services:
+
+  api:
+    image: vancuong12082004/picmate-api:latest
+
+    container_name: picmate-api
+
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+
+      ConnectionStrings__DefaultConnection: >
+        Host=dpg-d8i12sa8qa3s73dva9v0-a.singapore-postgres.render.com;Port=5432;Database=picmatedb;Username=picmate;Password=TFTdphvvbi4HEnYCrZXZ8ezqljmwka2w;SSL Mode=Require;Trust Server Certificate=true
+
+      Jwt__Issuer: PhoneGrapher.Api
+      Jwt__Audience: PhoneGrapher.Client
+      Jwt__SigningKey: dev-only-phone-grapher-signing-key-change-me-32
+      Jwt__AccessTokenMinutes: 60
+      Jwt__RefreshTokenDays: 30
+
+      VnPay__Version: 2.1.0
+      VnPay__Command: pay
+      VnPay__TmnCode: CGXZLS0Z
+      VnPay__HashSecret: XNBCJFAKAZQSGTARRLGCHVZWCIOIGSHN
+      VnPay__PaymentUrl: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      VnPay__ReturnUrl: http://localhost:5274/api/payments/vnpay-return
+      VnPay__Locale: vn
+      VnPay__CurrencyCode: VND
+
+    ports:
+      - "5274:8080"
+
+    networks:
+      - backend
+
+networks:
+  backend:

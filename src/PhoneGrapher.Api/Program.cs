@@ -6,6 +6,8 @@ using Microsoft.IdentityModel.Tokens;
 using PhoneGrapher.Infrastructure;
 using PhoneGrapher.Infrastructure.Options;
 using PhoneGrapher.Api.Hubs;
+using Microsoft.EntityFrameworkCore;
+using PhoneGrapher.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -88,6 +90,12 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<PhoneGrapherDbContext>();
+    dbContext.Database.Migrate();
+}
 
 app.UseExceptionHandler(errorApp =>
 {
