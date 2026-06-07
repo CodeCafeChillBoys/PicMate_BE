@@ -26,7 +26,7 @@ services:
       VnPay__TmnCode: CGXZLS0Z
       VnPay__HashSecret: XNBCJFAKAZQSGTARRLGCHVZWCIOIGSHN
       VnPay__PaymentUrl: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-      VnPay__ReturnUrl: http://localhost:5274/api/payments/vnpay-return
+      VnPay__ReturnUrl: https://picmate-api-latest.onrender.com/api/payments/vnpay-return
       VnPay__Locale: vn
       VnPay__CurrencyCode: VND
 
