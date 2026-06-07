@@ -21,11 +21,10 @@ public sealed class UploadsController : ControllerBase
 
     [HttpPost]
     [Authorize]
-    public async Task<IActionResult> UploadImage([FromForm] UploadImageRequest request)
+    public async Task<IActionResult> UploadImage(IFormFile file)
     {
         try
         {
-            var file = request?.File;
             if (file == null || file.Length == 0)
             {
                 return BadRequest(new { Error = "No file uploaded." });
@@ -59,7 +58,8 @@ public sealed class UploadsController : ControllerBase
                 await file.CopyToAsync(stream);
             }
 
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
+            var scheme = Request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? Request.Scheme;
+            var baseUrl = $"{scheme}://{Request.Host}{Request.PathBase}";
             var fileUrl = $"{baseUrl}/uploads/{uniqueFileName}";
 
             return Ok(new { url = fileUrl });
