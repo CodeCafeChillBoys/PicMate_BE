@@ -26,6 +26,12 @@ public class ChatHub : Hub
         if (!Guid.TryParse(receiverId, out var receiverGuid))
             return;
 
+        var receiverExists = await _dbContext.Users.AnyAsync(u => u.Id == receiverGuid);
+        if (!receiverExists)
+        {
+            throw new HubException("Người nhận không tồn tại trong hệ thống.");
+        }
+
         var message = new Message
         {
             SenderId = senderId,
@@ -35,7 +41,15 @@ public class ChatHub : Hub
         };
 
         _dbContext.Messages.Add(message);
-        await _dbContext.SaveChangesAsync();
+        
+        try 
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            throw new HubException($"Lỗi lưu tin nhắn: {ex.Message}");
+        }
 
         // Broadcast the message to the receiver
         await Clients.User(receiverId).SendAsync("ReceiveMessage", new

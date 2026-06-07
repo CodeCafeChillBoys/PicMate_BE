@@ -7,14 +7,15 @@ namespace PhoneGrapher.Api.Controllers;
 
 [ApiController]
 [Route("api/payments")]
-public sealed class PaymentsController(IBookingService bookingService) : ControllerBase
+public sealed class PaymentsController(IBookingService bookingService, IConfiguration configuration) : ControllerBase
 {
     [HttpGet("vnpay-return")]
     [AllowAnonymous]
     public async Task<IActionResult> VnPayReturn(CancellationToken cancellationToken)
     {
         var result = await bookingService.HandleVnPayCallbackAsync(ToDictionary(), cancellationToken);
-        var frontendUrl = "http://localhost:5173/payment-result";
+        var frontendBaseUrl = configuration["FrontendUrl"]?.TrimEnd('/') ?? "https://pic-mate-fe.vercel.app";
+        var frontendUrl = $"{frontendBaseUrl}/payment-result";
         
         if (result.Success)
         {

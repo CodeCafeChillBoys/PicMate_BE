@@ -49,7 +49,12 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowFrontend", policy => {
-        policy.WithOrigins("http://localhost:5173", "https://localhost:5173", "https://pic-mate-euxlufqmv-vancuongdhfpts-projects.vercel.app")
+        policy.WithOrigins(
+                "http://localhost:5173", 
+                "https://localhost:5173", 
+                "https://pic-mate-fe.vercel.app"
+              )
+              .SetIsOriginAllowed(origin => origin.EndsWith(".vercel.app"))
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
