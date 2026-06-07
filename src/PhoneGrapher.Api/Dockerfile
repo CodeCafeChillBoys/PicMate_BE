@@ -30,4 +30,9 @@ RUN dotnet publish "./PhoneGrapher.Api.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+
+# Create wwwroot and change ownership so the app can upload files
+USER root
+RUN mkdir -p /app/wwwroot/uploads && chown -R $APP_UID /app/wwwroot
+USER $APP_UID
 ENTRYPOINT ["dotnet", "PhoneGrapher.Api.dll"]
