@@ -19,6 +19,8 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Preset> Presets => Set<Preset>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<Dispute> Disputes => Set<Dispute>();
+    public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -202,6 +204,37 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
                 .WithMany()
                 .HasForeignKey(x => x.ReceiverId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Dispute>(entity =>
+        {
+            entity.ToTable("disputes");
+            entity.HasIndex(x => new { x.Status, x.Priority });
+            entity.HasIndex(x => x.BookingId);
+            entity.Property(x => x.Reason).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            entity.Property(x => x.Priority).HasConversion<string>().HasMaxLength(32);
+            entity.Property(x => x.AdminNote).HasMaxLength(2000);
+            entity.Property(x => x.Resolution).HasMaxLength(64);
+            entity.HasOne(x => x.Booking)
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Reporter)
+                .WithMany()
+                .HasForeignKey(x => x.ReporterId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Respondent)
+                .WithMany()
+                .HasForeignKey(x => x.RespondentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SystemSettings>(entity =>
+        {
+            entity.ToTable("system_settings");
+            entity.Property(x => x.PlatformFeePercent).HasPrecision(5, 2);
+            entity.Property(x => x.MinWithdrawalAmount).HasPrecision(18, 2);
         });
 
         Seed(modelBuilder);

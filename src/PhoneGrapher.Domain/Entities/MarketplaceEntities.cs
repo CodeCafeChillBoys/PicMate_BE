@@ -179,3 +179,40 @@ public sealed class Message : Entity
     public User Sender { get; set; } = null!;
     public User Receiver { get; set; } = null!;
 }
+
+public sealed class Dispute : Entity
+{
+    public Guid BookingId { get; set; }
+    public Guid ReporterId { get; set; }       // Người báo cáo
+    public Guid RespondentId { get; set; }     // Người bị báo cáo
+    public string Reason { get; set; } = string.Empty;
+    public DisputeStatus Status { get; set; } = DisputeStatus.Pending;
+    public DisputePriority Priority { get; set; } = DisputePriority.Medium;
+    public string? AdminNote { get; set; }
+    public string? Resolution { get; set; }    // 'refund' | 'warning' | 'resolved'
+    public DateTimeOffset? ResolvedAt { get; set; }
+
+    public Booking Booking { get; set; } = null!;
+    public User Reporter { get; set; } = null!;
+    public User Respondent { get; set; } = null!;
+}
+
+public sealed class SystemSettings : Entity
+{
+    /// <summary>Phí platform tính trên % giá trị đơn hàng (mặc định 15)</summary>
+    public decimal PlatformFeePercent { get; set; } = 15m;
+    /// <summary>Số tiền tối thiểu để Grapher rút (đơn vị: VNĐ, mặc định 200000)</summary>
+    public decimal MinWithdrawalAmount { get; set; } = 200000m;
+    /// <summary>Cho phép thanh toán MoMo</summary>
+    public bool MomoEnabled { get; set; } = true;
+    /// <summary>Cho phép thanh toán VNPay</summary>
+    public bool VnPayEnabled { get; set; } = true;
+    /// <summary>Cho phép thanh toán ZaloPay</summary>
+    public bool ZaloPayEnabled { get; set; } = false;
+    /// <summary>Bật email thông báo đơn mới</summary>
+    public bool EmailNotifyNewBooking { get; set; } = true;
+    /// <summary>Bật cảnh báo tranh chấp</summary>
+    public bool EmailNotifyDispute { get; set; } = true;
+    /// <summary>Chế độ bảo trì</summary>
+    public bool MaintenanceMode { get; set; } = false;
+}

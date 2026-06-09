@@ -11,7 +11,7 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
 {
     public async Task<IReadOnlyList<GrapherSummaryResponse>> SearchAsync(GrapherSearchRequest request, CancellationToken cancellationToken = default)
     {
-        var query = IncludeSummary(dbContext.GrapherProfiles.AsNoTracking()).Where(x => x.IsVerified);
+        var query = IncludeSummary(dbContext.GrapherProfiles.AsNoTracking()).Where(x => x.IsVerified && x.User.IsActive);
 
         if (!string.IsNullOrWhiteSpace(request.Location))
         {
@@ -59,7 +59,7 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
         var profile = await IncludeSummary(dbContext.GrapherProfiles.AsNoTracking())
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
             
-        if (profile is null)
+        if (profile is null || !profile.User.IsActive)
         {
             throw new KeyNotFoundException($"Grapher profile with ID {id} not found.");
         }

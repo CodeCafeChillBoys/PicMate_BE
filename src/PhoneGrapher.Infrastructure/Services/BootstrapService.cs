@@ -17,7 +17,7 @@ public sealed class BootstrapService(PhoneGrapherDbContext dbContext) : IBootstr
             .Include(x => x.ServicePackages)
             .Include(x => x.StyleTags)
             .ThenInclude(x => x.StyleTag)
-            .Where(x => x.IsVerified)
+            .Where(x => x.IsVerified && x.User.IsActive)
             .OrderByDescending(x => x.AverageRating)
             .Take(12)
             .ToArrayAsync(cancellationToken);

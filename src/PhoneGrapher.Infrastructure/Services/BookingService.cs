@@ -24,12 +24,13 @@ public sealed class BookingService(
             ?? throw new InvalidOperationException("Only customers can create bookings.");
 
         var package = await dbContext.GrapherServicePackages
-            .Include(x => x.GrapherProfile)
+            .Include(x => x.GrapherProfile).ThenInclude(gp => gp.User)
             .FirstOrDefaultAsync(x =>
                 x.Id == request.ServicePackageId
                 && x.GrapherProfileId == request.GrapherProfileId
                 && x.IsActive
-                && x.GrapherProfile.IsVerified,
+                && x.GrapherProfile.IsVerified
+                && x.GrapherProfile.User.IsActive,
                 cancellationToken)
             ?? throw new InvalidOperationException("Service package is unavailable.");
 
