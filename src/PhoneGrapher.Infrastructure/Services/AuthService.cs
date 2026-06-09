@@ -46,6 +46,7 @@ public sealed class AuthService(
             {
                 Bio = string.Empty,
                 Location = string.Empty,
+                KycStatus = KycStatus.Pending,
                 ServicePackages = new List<GrapherServicePackage>
                 {
                     new()

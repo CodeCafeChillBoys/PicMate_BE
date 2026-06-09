@@ -46,3 +46,17 @@ public enum EscrowStatus
     Released = 4,
     Refunded = 5
 }
+
+public enum DisputeStatus
+{
+    Pending = 1,
+    Resolved = 2,
+    Closed = 3
+}
+
+public enum DisputePriority
+{
+    Medium = 1,
+    High = 2,
+    Urgent = 3
+}
