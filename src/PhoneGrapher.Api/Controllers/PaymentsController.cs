@@ -14,7 +14,9 @@ public sealed class PaymentsController(IBookingService bookingService, IConfigur
     public async Task<IActionResult> VnPayReturn(CancellationToken cancellationToken)
     {
         var result = await bookingService.HandleVnPayCallbackAsync(ToDictionary(), cancellationToken);
-        var frontendBaseUrl = configuration["FrontendUrl"]?.TrimEnd('/') ?? "https://pic-mate-fe.vercel.app";
+        var frontendBaseUrl = configuration["FrontendUrl"]?.Trim()?.TrimEnd('/') ?? "https://pic-mate-fe.vercel.app";
+        // Ensure no control characters (like \n) are present in the base URL that could cause header validation to fail
+        frontendBaseUrl = new string(frontendBaseUrl.Where(c => !char.IsControl(c)).ToArray());
         var frontendUrl = $"{frontendBaseUrl}/payment-result";
         
         if (result.Success)
@@ -22,7 +24,7 @@ public sealed class PaymentsController(IBookingService bookingService, IConfigur
             return Redirect($"{frontendUrl}?payment=success&bookingId={result.BookingId}");
         }
         
-        return Redirect($"{frontendUrl}?payment=failed&message={Uri.EscapeDataString(result.Message)}");
+        return Redirect($"{frontendUrl}?payment=failed&message={Uri.EscapeDataString(result.Message ?? string.Empty)}");
     }
 
     [HttpGet("vnpay-ipn")]
