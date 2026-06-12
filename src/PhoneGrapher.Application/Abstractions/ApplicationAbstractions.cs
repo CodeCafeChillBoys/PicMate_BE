@@ -49,8 +49,17 @@ public interface IAdminService
     Task<IReadOnlyList<AdminUserResponse>> GetAllUsersAsync(string? search, string? role, CancellationToken cancellationToken = default);
     Task<AdminUserResponse> ToggleUserStatusAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminPendingGrapherResponse>> GetPendingGraphersAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AdminActiveGrapherResponse>> GetActiveGraphersAsync(CancellationToken cancellationToken = default);
+    Task<AdminActiveGrapherResponse> ToggleGrapherStatusAsync(Guid grapherProfileId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminBookingResponse>> GetAllBookingsAsync(string? status, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminActivityResponse>> GetRecentActivitiesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AdminDisputeResponse>> GetDisputesAsync(string? status, CancellationToken cancellationToken = default);
+    Task<AdminDisputeResponse> ResolveDisputeAsync(Guid disputeId, ResolveDisputeRequest request, CancellationToken cancellationToken = default);
+    Task<SystemSettingsResponse> GetSystemSettingsAsync(CancellationToken cancellationToken = default);
+    Task<SystemSettingsResponse> UpdateSystemSettingsAsync(UpdateSystemSettingsRequest request, CancellationToken cancellationToken = default);
+    Task<AdminUserDetailResponse> GetUserDetailAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<AdminGrapherDetailResponse> GetGrapherDetailAsync(Guid grapherProfileId, CancellationToken cancellationToken = default);
+    Task<AdminBookingDetailResponse> GetBookingDetailAsync(Guid bookingId, CancellationToken cancellationToken = default);
 }
 
 public interface IJwtTokenService

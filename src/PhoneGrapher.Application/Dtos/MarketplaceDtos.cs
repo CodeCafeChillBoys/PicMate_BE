@@ -144,3 +144,119 @@ public sealed record AdminActivityResponse(
     string Icon,
     string Text,
     string Time);
+
+// ── Admin – Active Graphers ────────────────────────────────────────────────
+
+public sealed record AdminActiveGrapherResponse(
+    Guid Id,
+    Guid UserId,
+    string Name,
+    string? Avatar,
+    string Location,
+    decimal Rating,
+    int ReviewCount,
+    bool IsOnline,
+    bool IsVerified,
+    bool IsActive,           // User.IsActive – có thể khóa tài khoản
+    string KycStatus,
+    int TotalBookings);
+
+// ── Admin – Disputes ───────────────────────────────────────────────────────
+
+public sealed record AdminDisputeResponse(
+    Guid Id,
+    Guid BookingId,
+    string ReporterName,
+    string? ReporterAvatar,
+    string RespondentName,
+    string? RespondentAvatar,
+    string Reason,
+    string Status,           // 'Pending' | 'Resolved' | 'Closed'
+    string Priority,         // 'Medium' | 'High' | 'Urgent'
+    string? AdminNote,
+    string? Resolution,
+    decimal BookingAmount,
+    string CreatedAt,
+    string? ResolvedAt);
+
+public sealed record CreateDisputeRequest(
+    Guid BookingId,
+    string Reason,
+    string Priority);        // 'Medium' | 'High' | 'Urgent'
+
+public sealed record ResolveDisputeRequest(
+    string Action,           // 'refund' | 'warning' | 'resolved'
+    string? AdminNote);
+
+// ── Admin – System Settings ────────────────────────────────────────────────
+
+public sealed record SystemSettingsResponse(
+    decimal PlatformFeePercent,
+    decimal MinWithdrawalAmount,
+    bool MomoEnabled,
+    bool VnPayEnabled,
+    bool ZaloPayEnabled,
+    bool EmailNotifyNewBooking,
+    bool EmailNotifyDispute,
+    bool MaintenanceMode);
+
+public sealed record UpdateSystemSettingsRequest(
+    decimal PlatformFeePercent,
+    decimal MinWithdrawalAmount,
+    bool MomoEnabled,
+    bool VnPayEnabled,
+    bool ZaloPayEnabled,
+    bool EmailNotifyNewBooking,
+    bool EmailNotifyDispute,
+    bool MaintenanceMode);
+
+// ── Admin – Detail Views ───────────────────────────────────────────────────
+
+public sealed record AdminUserDetailResponse(
+    Guid Id,
+    string Name,
+    string Email,
+    string Role,
+    string JoinDate,
+    int TotalBookings,
+    bool IsActive,
+    IReadOnlyList<AdminBookingResponse> RecentBookings);
+
+public sealed record AdminGrapherDetailResponse(
+    Guid Id,
+    Guid UserId,
+    string Name,
+    string? Avatar,
+    string Location,
+    decimal Rating,
+    int ReviewCount,
+    bool IsOnline,
+    bool IsVerified,
+    bool IsActive,
+    string KycStatus,
+    int TotalBookings,
+    decimal TotalRevenue,
+    string Bio,
+    IReadOnlyList<string> Styles,
+    IReadOnlyList<string> Portfolio,
+    IReadOnlyList<ServicePackageResponse> Packages,
+    string JoinDate);
+
+public sealed record AdminBookingDetailResponse(
+    Guid Id,
+    Guid GrapherProfileId,
+    string GrapherName,
+    Guid CustomerId,
+    string CustomerName,
+    string ServiceName,
+    DateTimeOffset ScheduledAt,
+    int DurationMinutes,
+    string Location,
+    string? Note,
+    string Status,
+    decimal TotalAmount,
+    decimal PlatformFeeAmount,
+    decimal GrapherPayoutAmount,
+    DateTimeOffset CreatedAt,
+    string? CancellationReason,
+    PhoneGrapher.Application.Dtos.PaymentTransactionResponse? Payment);

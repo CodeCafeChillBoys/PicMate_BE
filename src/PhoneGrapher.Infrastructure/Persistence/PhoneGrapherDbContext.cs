@@ -19,6 +19,8 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Preset> Presets => Set<Preset>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<Dispute> Disputes => Set<Dispute>();
+    public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -204,6 +206,121 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.SeedData();
+        modelBuilder.Entity<Dispute>(entity =>
+        {
+            entity.ToTable("disputes");
+            entity.HasIndex(x => new { x.Status, x.Priority });
+            entity.HasIndex(x => x.BookingId);
+            entity.Property(x => x.Reason).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            entity.Property(x => x.Priority).HasConversion<string>().HasMaxLength(32);
+            entity.Property(x => x.AdminNote).HasMaxLength(2000);
+            entity.Property(x => x.Resolution).HasMaxLength(64);
+            entity.HasOne(x => x.Booking)
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Reporter)
+                .WithMany()
+                .HasForeignKey(x => x.ReporterId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Respondent)
+                .WithMany()
+                .HasForeignKey(x => x.RespondentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SystemSettings>(entity =>
+        {
+            entity.ToTable("system_settings");
+            entity.Property(x => x.PlatformFeePercent).HasPrecision(5, 2);
+            entity.Property(x => x.MinWithdrawalAmount).HasPrecision(18, 2);
+        });
+
+        Seed(modelBuilder);
+    }
+
+    private static void Seed(ModelBuilder modelBuilder)
+    {
+        var now = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var vintageId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+        var koreanId = Guid.Parse("10000000-0000-0000-0000-000000000002");
+        var minimalId = Guid.Parse("10000000-0000-0000-0000-000000000003");
+        var streetId = Guid.Parse("10000000-0000-0000-0000-000000000004");
+        var grapherUserId = Guid.Parse("20000000-0000-0000-0000-000000000001");
+        var grapherProfileId = Guid.Parse("30000000-0000-0000-0000-000000000001");
+        var packageId = Guid.Parse("40000000-0000-0000-0000-000000000001");
+
+        modelBuilder.Entity<StyleTag>().HasData(
+            new StyleTag { Id = vintageId, Name = "Vintage", Emoji = "📸", Color = "#C44569", CreatedAt = now },
+            new StyleTag { Id = koreanId, Name = "Hàn Quốc", Emoji = "🎌", Color = "#FF6B9D", CreatedAt = now },
+            new StyleTag { Id = minimalId, Name = "Minimal", Emoji = "⚪", Color = "#4A90E2", CreatedAt = now },
+            new StyleTag { Id = streetId, Name = "Street", Emoji = "🏙️", Color = "#F5A623", CreatedAt = now });
+
+        modelBuilder.Entity<User>().HasData(new User
+        {
+            Id = grapherUserId,
+            FullName = "Nguyễn Anh",
+            Email = "grapher@picmate.vn",
+            PhoneNumber = "0900000001",
+            PasswordHash = "seeded-user-register-again-to-login",
+            AvatarUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=96&h=96&fit=crop",
+            Role = UserRole.Grapher,
+            IsActive = true,
+            CreatedAt = now
+        });
+
+        modelBuilder.Entity<GrapherProfile>().HasData(new GrapherProfile
+        {
+            Id = grapherProfileId,
+            UserId = grapherUserId,
+            Bio = "Sinh viên đam mê chụp ảnh bằng điện thoại, chuyên ảnh lifestyle và vintage.",
+            Location = "TP.HCM",
+            KycStatus = KycStatus.Approved,
+            IsVerified = true,
+            IsOnline = true,
+            AverageRating = 4.9m,
+            ReviewCount = 234,
+            CreatedAt = now
+        });
+
+        modelBuilder.Entity<GrapherStyleTag>().HasData(
+            new GrapherStyleTag { GrapherProfileId = grapherProfileId, StyleTagId = vintageId },
+            new GrapherStyleTag { GrapherProfileId = grapherProfileId, StyleTagId = koreanId });
+
+        modelBuilder.Entity<GrapherPortfolioItem>().HasData(
+            new GrapherPortfolioItem
+            {
+                Id = Guid.Parse("50000000-0000-0000-0000-000000000001"),
+                GrapherProfileId = grapherProfileId,
+                ImageUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop",
+                DisplayOrder = 1,
+                CreatedAt = now
+            });
+
+        modelBuilder.Entity<GrapherServicePackage>().HasData(new GrapherServicePackage
+        {
+            Id = packageId,
+            GrapherProfileId = grapherProfileId,
+            Name = "Hourly phone shoot",
+            Description = "Một giờ chụp bằng điện thoại, nhận ảnh trong ngày.",
+            Price = 150000m,
+            DurationMinutes = 60,
+            IsActive = true,
+            CreatedAt = now
+        });
+
+        modelBuilder.Entity<Preset>().HasData(new Preset
+        {
+            Id = Guid.Parse("60000000-0000-0000-0000-000000000001"),
+            Name = "Golden Hour",
+            Category = "Warm",
+            ImageUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop",
+            DownloadUrl = "https://example.com/presets/golden-hour.dng",
+            Price = 49000m,
+            Rating = 4.9m,
+            DownloadCount = 12500,
+            CreatedAt = now
+        });
     }
 }
