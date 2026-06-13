@@ -11,6 +11,7 @@ public sealed class User : Entity
     public string PasswordHash { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public UserRole Role { get; set; }
+    public AuthProvider Provider { get; set; } = AuthProvider.Local;
     public bool IsActive { get; set; } = true;
 
     public GrapherProfile? GrapherProfile { get; set; }
@@ -195,6 +196,18 @@ public sealed class Dispute : Entity
     public Booking Booking { get; set; } = null!;
     public User Reporter { get; set; } = null!;
     public User Respondent { get; set; } = null!;
+}
+
+public sealed class Notification : Entity
+{
+    public Guid UserId { get; set; }            // người nhận
+    public string Type { get; set; } = string.Empty;   // booking_new | booking_confirmed | booking_completed | booking_cancelled | dispute
+    public string Title { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public Guid? RelatedBookingId { get; set; }
+    public bool IsRead { get; set; }
+
+    public User User { get; set; } = null!;
 }
 
 public sealed class SystemSettings : Entity

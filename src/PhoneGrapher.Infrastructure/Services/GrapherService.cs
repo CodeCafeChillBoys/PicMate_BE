@@ -159,6 +159,79 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
         return saved.ToSummaryResponse();
     }
 
+    public async Task<IReadOnlyList<ServicePackageResponse>> GetMyServicesAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var profile = await dbContext.GrapherProfiles
+            .AsNoTracking()
+            .Include(x => x.ServicePackages)
+            .FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken)
+            ?? throw new KeyNotFoundException("Grapher profile not found.");
+
+        return profile.ServicePackages
+            .Where(p => p.IsActive)
+            .OrderBy(p => p.Price)
+            .Select(p => new ServicePackageResponse(p.Id, p.Name, p.Description, p.Price, p.DurationMinutes))
+            .ToArray();
+    }
+
+    public async Task<ServicePackageResponse> AddServiceAsync(Guid userId, ServiceRequest request, CancellationToken cancellationToken = default)
+    {
+        var profile = await dbContext.GrapherProfiles.FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken)
+            ?? throw new InvalidOperationException("Grapher profile not found.");
+
+        var pkg = new GrapherServicePackage
+        {
+            GrapherProfileId = profile.Id,
+            Name = request.Name.Trim(),
+            Description = request.Description?.Trim() ?? string.Empty,
+            Price = request.Price,
+            DurationMinutes = request.DurationMinutes,
+            IsActive = true
+        };
+        dbContext.GrapherServicePackages.Add(pkg);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new ServicePackageResponse(pkg.Id, pkg.Name, pkg.Description, pkg.Price, pkg.DurationMinutes);
+    }
+
+    public async Task<ServicePackageResponse> UpdateServiceAsync(Guid userId, Guid serviceId, ServiceRequest request, CancellationToken cancellationToken = default)
+    {
+        var pkg = await dbContext.GrapherServicePackages
+            .Include(x => x.GrapherProfile)
+            .FirstOrDefaultAsync(x => x.Id == serviceId, cancellationToken)
+            ?? throw new KeyNotFoundException("Service not found.");
+
+        if (pkg.GrapherProfile.UserId != userId)
+        {
+            throw new UnauthorizedAccessException("You don't own this service.");
+        }
+
+        pkg.Name = request.Name.Trim();
+        pkg.Description = request.Description?.Trim() ?? string.Empty;
+        pkg.Price = request.Price;
+        pkg.DurationMinutes = request.DurationMinutes;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new ServicePackageResponse(pkg.Id, pkg.Name, pkg.Description, pkg.Price, pkg.DurationMinutes);
+    }
+
+    public async Task DeleteServiceAsync(Guid userId, Guid serviceId, CancellationToken cancellationToken = default)
+    {
+        var pkg = await dbContext.GrapherServicePackages
+            .Include(x => x.GrapherProfile)
+            .FirstOrDefaultAsync(x => x.Id == serviceId, cancellationToken)
+            ?? throw new KeyNotFoundException("Service not found.");
+
+        if (pkg.GrapherProfile.UserId != userId)
+        {
+            throw new UnauthorizedAccessException("You don't own this service.");
+        }
+
+        // Soft-delete: ẩn gói đi nhưng giữ bản ghi để không vỡ FK với các booking đã dùng gói này.
+        pkg.IsActive = false;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task ApproveKycAsync(Guid grapherProfileId, bool approved, CancellationToken cancellationToken = default)
     {
         var profile = await dbContext.GrapherProfiles.FirstOrDefaultAsync(x => x.Id == grapherProfileId, cancellationToken)
@@ -223,6 +296,26 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
         return defaults
             .Select(p => new ServicePackageResponse(p.Id, p.Name, p.Description, p.Price, p.DurationMinutes))
             .ToArray();
+    }
+
+    public async Task<GrapherDetailResponse> GetMyProfileAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var profile = await IncludeSummary(dbContext.GrapherProfiles.AsNoTracking())
+            .FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken)
+            ?? throw new KeyNotFoundException("Grapher profile not found.");
+
+        return profile.ToDetailResponse();
+    }
+
+    public async Task SetOnlineStatusAsync(Guid userId, bool isOnline, CancellationToken cancellationToken = default)
+    {
+        var profile = await dbContext.GrapherProfiles
+            .FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken)
+            ?? throw new InvalidOperationException("Grapher profile not found.");
+
+        profile.IsOnline = isOnline;
+        profile.UpdatedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static IQueryable<GrapherProfile> IncludeSummary(IQueryable<GrapherProfile> query)

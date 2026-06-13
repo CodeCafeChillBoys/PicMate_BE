@@ -40,6 +40,30 @@ public sealed class GraphersController(IGrapherService grapherService) : Control
         }
     }
 
+    [HttpGet("me")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<ActionResult<GrapherDetailResponse>> GetMyProfile(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await grapherService.GetMyProfileAsync(User.GetUserId(), cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpPut("me/online")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<IActionResult> SetOnlineStatus(
+        [FromBody] SetOnlineStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        await grapherService.SetOnlineStatusAsync(User.GetUserId(), request.IsOnline, cancellationToken);
+        return Ok(new { isOnline = request.IsOnline });
+    }
+
     [HttpPut("me")]
     [Authorize(Roles = "Grapher")]
     public async Task<IActionResult> UpsertMyProfile(
@@ -63,5 +87,39 @@ public sealed class GraphersController(IGrapherService grapherService) : Control
         CancellationToken cancellationToken)
     {
         return Ok(await grapherService.SeedDefaultPackagesAsync(User.GetUserId(), cancellationToken));
+    }
+
+    [HttpGet("me/services")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<ActionResult<IReadOnlyList<ServicePackageResponse>>> GetMyServices(CancellationToken cancellationToken)
+    {
+        return Ok(await grapherService.GetMyServicesAsync(User.GetUserId(), cancellationToken));
+    }
+
+    [HttpPost("me/services")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<ActionResult<ServicePackageResponse>> AddService(
+        [FromBody] ServiceRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await grapherService.AddServiceAsync(User.GetUserId(), request, cancellationToken));
+    }
+
+    [HttpPut("me/services/{id:guid}")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<ActionResult<ServicePackageResponse>> UpdateService(
+        Guid id,
+        [FromBody] ServiceRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await grapherService.UpdateServiceAsync(User.GetUserId(), id, request, cancellationToken));
+    }
+
+    [HttpDelete("me/services/{id:guid}")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<IActionResult> DeleteService(Guid id, CancellationToken cancellationToken)
+    {
+        await grapherService.DeleteServiceAsync(User.GetUserId(), id, cancellationToken);
+        return NoContent();
     }
 }

@@ -5,7 +5,8 @@ public sealed record CreateBookingRequest(
     Guid ServicePackageId,
     DateTimeOffset ScheduledAt,
     string Location,
-    string? Note);
+    string? Note,
+    string? PaymentMethod = "vnpay");
 
 public sealed record CancelBookingRequest(string Reason);
 
@@ -92,4 +93,5 @@ public sealed record CustomerBookingResponse(
     string? Note,
     string Status,
     decimal TotalAmount,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    bool HasReview);

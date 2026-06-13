@@ -24,6 +24,8 @@ public sealed record GrapherSummaryResponse(
 
 public sealed record GrapherPricingResponse(decimal Hourly, decimal Daily);
 
+public sealed record SetOnlineStatusRequest(bool IsOnline);
+
 public sealed record GrapherDetailResponse(
     Guid Id,
     Guid UserId,
@@ -61,7 +63,22 @@ public sealed record UpsertServicePackageRequest(
     decimal Price,
     int DurationMinutes);
 
+public sealed record ServiceRequest(
+    string Name,
+    string Description,
+    decimal Price,
+    int DurationMinutes);
+
 public sealed record ReviewRequest(int Rating, string Comment);
+
+public sealed record NotificationResponse(
+    Guid Id,
+    string Type,
+    string Title,
+    string Message,
+    Guid? RelatedBookingId,
+    bool IsRead,
+    DateTimeOffset CreatedAt);
 
 public sealed record ReviewResponse(
     Guid Id,
