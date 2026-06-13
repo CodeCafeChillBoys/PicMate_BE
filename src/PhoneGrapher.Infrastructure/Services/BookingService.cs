@@ -1,18 +1,36 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PhoneGrapher.Application.Abstractions;
 using PhoneGrapher.Application.Dtos;
 using PhoneGrapher.Domain.Entities;
 using PhoneGrapher.Domain.Enums;
+using PhoneGrapher.Infrastructure.Emails;
 using PhoneGrapher.Infrastructure.Persistence;
 
 namespace PhoneGrapher.Infrastructure.Services;
 
 public sealed class BookingService(
     PhoneGrapherDbContext dbContext,
-    IVnPayService vnPayService) : IBookingService
+    IVnPayService vnPayService,
+    IEmailService emailService,
+    INotificationService notificationService,
+    ILogger<BookingService> logger) : IBookingService
 {
     private const decimal PlatformFeeRate = 0.15m;
+
+    // Tạo thông báo in-app best-effort: lỗi thông báo không được làm hỏng thao tác chính.
+    private async Task NotifySafeAsync(Guid userId, string type, string title, string message, Guid bookingId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await notificationService.CreateAsync(userId, type, title, message, bookingId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Không tạo được thông báo cho user {UserId} (booking {BookingId}).", userId, bookingId);
+        }
+    }
 
     public async Task<CreateBookingPaymentResponse> CreateBookingAsync(
         Guid customerId,
@@ -47,6 +65,7 @@ public sealed class BookingService(
 
         var platformFee = decimal.Round(package.Price * PlatformFeeRate, 2);
         var payout = package.Price - platformFee;
+        var isCod = string.Equals(request.PaymentMethod, "cod", StringComparison.OrdinalIgnoreCase);
 
         await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
@@ -59,7 +78,8 @@ public sealed class BookingService(
             DurationMinutes = package.DurationMinutes,
             Location = request.Location.Trim(),
             Note = request.Note?.Trim(),
-            Status = BookingStatus.PendingPayment,
+            // COD: bỏ qua bước thanh toán online, vào thẳng trạng thái chờ thợ xác nhận
+            Status = isCod ? BookingStatus.PendingConfirmation : BookingStatus.PendingPayment,
             TotalAmount = package.Price,
             PlatformFeeAmount = platformFee,
             GrapherPayoutAmount = payout
@@ -68,6 +88,7 @@ public sealed class BookingService(
         var payment = new PaymentTransaction
         {
             Booking = booking,
+            Provider = isCod ? PaymentProvider.Cod : PaymentProvider.VnPay,
             Amount = booking.TotalAmount,
             PlatformFeeAmount = platformFee,
             GrapherPayoutAmount = payout,
@@ -78,6 +99,14 @@ public sealed class BookingService(
         dbContext.PaymentTransactions.Add(payment);
         await dbContext.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);
+
+        // COD: không tạo link thanh toán, trả PaymentUrl rỗng để FE biết đơn đã đặt xong.
+        if (isCod)
+        {
+            await NotifySafeAsync(package.GrapherProfile.UserId, "booking_new", "Đơn đặt mới",
+                "Bạn có một đơn đặt lịch mới (trả sau) đang chờ xác nhận.", booking.Id, cancellationToken);
+            return new CreateBookingPaymentResponse(booking.ToResponse(), string.Empty);
+        }
 
         var paymentUrl = vnPayService.CreatePaymentUrl(payment, clientIpAddress);
         return new CreateBookingPaymentResponse(booking.ToResponse(), paymentUrl);
@@ -98,13 +127,19 @@ public sealed class BookingService(
         }
 
         var payment = await dbContext.PaymentTransactions
-            .Include(x => x.Booking)
+            .Include(x => x.Booking).ThenInclude(b => b.Customer)
+            .Include(x => x.Booking).ThenInclude(b => b.GrapherProfile).ThenInclude(gp => gp.User)
+            .Include(x => x.Booking).ThenInclude(b => b.ServicePackage)
             .FirstOrDefaultAsync(x => x.TransactionCode == transactionCode, cancellationToken);
 
         if (payment is null)
         {
             return new VnPayCallbackResult(false, null, "Payment transaction not found.");
         }
+
+        // VNPAY gọi callback 2 lần (return trên trình duyệt + IPN từ server) → chỉ xử lý chuyển trạng thái
+        // và gửi email đúng lần đầu thanh toán thành công, tránh trùng lặp.
+        var alreadySucceeded = payment.Status == PaymentStatus.Succeeded;
 
         var success = query.TryGetValue("vnp_ResponseCode", out var responseCode)
             && responseCode == "00"
@@ -133,7 +168,40 @@ public sealed class BookingService(
         await dbContext.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);
 
+        if (success && !alreadySucceeded)
+        {
+            await SendPaymentConfirmationEmailAsync(payment.Booking, cancellationToken);
+            await NotifySafeAsync(payment.Booking.GrapherProfile.UserId, "booking_new", "Đơn đặt mới",
+                "Bạn có một đơn đặt lịch mới đã thanh toán, đang chờ bạn xác nhận.", payment.BookingId, cancellationToken);
+        }
+
         return new VnPayCallbackResult(success, payment.BookingId, success ? "Payment captured and escrow held." : "Payment failed.");
+    }
+
+    private async Task SendPaymentConfirmationEmailAsync(Booking booking, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var settings = await dbContext.SystemSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+            if (settings is not null && !settings.EmailNotifyNewBooking)
+            {
+                return; // Admin đã tắt email thông báo đơn mới
+            }
+
+            var customerEmail = booking.Customer?.Email;
+            if (string.IsNullOrWhiteSpace(customerEmail))
+            {
+                return;
+            }
+
+            var (subject, htmlBody) = BookingEmailTemplates.PaymentConfirmation(booking);
+            await emailService.SendAsync(customerEmail, booking.Customer!.FullName, subject, htmlBody, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Email là best-effort: thanh toán đã được ghi nhận, không để lỗi email ảnh hưởng kết quả callback.
+            logger.LogError(ex, "Không gửi được email xác nhận thanh toán cho booking {BookingId}.", booking.Id);
+        }
     }
 
     public async Task<CompleteBookingResponse> CompleteBookingAsync(Guid bookingId, Guid actorUserId, CancellationToken cancellationToken = default)
@@ -157,7 +225,8 @@ public sealed class BookingService(
         var payment = booking.PaymentTransaction
             ?? throw new InvalidOperationException("Booking payment transaction is missing.");
 
-        if (payment.Status != PaymentStatus.Succeeded || payment.EscrowStatus != EscrowStatus.Held)
+        var isCod = payment.Provider == PaymentProvider.Cod;
+        if (!isCod && (payment.Status != PaymentStatus.Succeeded || payment.EscrowStatus != EscrowStatus.Held))
         {
             throw new InvalidOperationException("Escrow is not ready to release.");
         }
@@ -167,12 +236,27 @@ public sealed class BookingService(
         booking.Status = BookingStatus.Completed;
         booking.CompletedAt = DateTimeOffset.UtcNow;
         booking.UpdatedAt = DateTimeOffset.UtcNow;
-        payment.EscrowStatus = EscrowStatus.Released;
-        payment.ReleasedAt = DateTimeOffset.UtcNow;
+
+        if (isCod)
+        {
+            // COD: thu tiền mặt khi hoàn thành, không có escrow để giải ngân
+            payment.Status = PaymentStatus.Succeeded;
+            payment.PaidAt = DateTimeOffset.UtcNow;
+        }
+        else
+        {
+            payment.EscrowStatus = EscrowStatus.Released;
+            payment.ReleasedAt = DateTimeOffset.UtcNow;
+        }
         payment.UpdatedAt = DateTimeOffset.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);
+
+        await NotifySafeAsync(booking.CustomerId, "booking_completed", "Buổi chụp hoàn thành",
+            "Đơn của bạn đã hoàn thành. Hãy đánh giá thợ nhé!", booking.Id, cancellationToken);
+        await NotifySafeAsync(booking.GrapherProfile.UserId, "booking_completed", "Đơn hoàn thành",
+            "Bạn vừa hoàn thành một đơn chụp.", booking.Id, cancellationToken);
 
         return new CompleteBookingResponse(
             booking.Id,
@@ -279,7 +363,8 @@ public sealed class BookingService(
                 x.Note,
                 x.Status.ToString(),
                 x.TotalAmount,
-                x.CreatedAt))
+                x.CreatedAt,
+                x.Review != null))
             .ToArrayAsync(cancellationToken);
     }
 
@@ -363,6 +448,20 @@ public sealed class BookingService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);
+
+        // Báo cho phía CÒN LẠI (không phải người huỷ). Nếu admin huỷ thì báo cả hai.
+        var customerId = booking.CustomerId;
+        var grapherUserId = booking.GrapherProfile.UserId;
+        const string cancelTitle = "Đơn bị huỷ";
+        const string cancelMsg = "Một đơn đặt lịch đã bị huỷ.";
+        if (userId != customerId)
+        {
+            await NotifySafeAsync(customerId, "booking_cancelled", cancelTitle, cancelMsg, booking.Id, cancellationToken);
+        }
+        if (userId != grapherUserId)
+        {
+            await NotifySafeAsync(grapherUserId, "booking_cancelled", cancelTitle, cancelMsg, booking.Id, cancellationToken);
+        }
     }
 
     public async Task ConfirmBookingAsync(Guid bookingId, Guid userId, CancellationToken cancellationToken = default)
@@ -390,6 +489,9 @@ public sealed class BookingService(
         booking.UpdatedAt = DateTimeOffset.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        await NotifySafeAsync(booking.CustomerId, "booking_confirmed", "Đơn đã được xác nhận",
+            "Thợ đã xác nhận đơn đặt lịch của bạn.", booking.Id, cancellationToken);
     }
 
     public async Task StartBookingAsync(Guid bookingId, Guid customerUserId, CancellationToken cancellationToken = default)

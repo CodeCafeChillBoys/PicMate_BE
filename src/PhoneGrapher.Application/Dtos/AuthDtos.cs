@@ -9,6 +9,9 @@ public sealed record RegisterRequest(
 
 public sealed record LoginRequest(string Email, string Password);
 
+/// <summary>Credential = Google ID token (JWT) lấy từ nút đăng nhập Google ở FE. Role tùy chọn cho lần tạo tài khoản đầu tiên.</summary>
+public sealed record GoogleAuthRequest(string Credential, string? Role);
+
 public sealed record AuthResponse(
     Guid Id,
     string Name,

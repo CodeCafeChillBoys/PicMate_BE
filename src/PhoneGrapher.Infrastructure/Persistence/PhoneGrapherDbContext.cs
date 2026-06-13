@@ -21,6 +21,7 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<Dispute> Disputes => Set<Dispute>();
     public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -34,6 +35,7 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
             entity.Property(x => x.PasswordHash).HasMaxLength(512).IsRequired();
             entity.Property(x => x.AvatarUrl).HasMaxLength(1024);
             entity.Property(x => x.Role).HasConversion<string>().HasMaxLength(32);
+            entity.Property(x => x.Provider).HasConversion<string>().HasMaxLength(32).HasDefaultValue(AuthProvider.Local);
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>
@@ -235,6 +237,20 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
             entity.ToTable("system_settings");
             entity.Property(x => x.PlatformFeePercent).HasPrecision(5, 2);
             entity.Property(x => x.MinWithdrawalAmount).HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("notifications");
+            entity.HasIndex(x => new { x.UserId, x.IsRead });
+            entity.HasIndex(x => x.CreatedAt);
+            entity.Property(x => x.Type).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Message).HasMaxLength(1000).IsRequired();
+            entity.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         Seed(modelBuilder);
