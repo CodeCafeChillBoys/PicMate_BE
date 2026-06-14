@@ -23,6 +23,13 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         return Ok(await authService.LoginAsync(request, cancellationToken));
     }
 
+    [HttpPost("google")]
+    [AllowAnonymous]
+    public async Task<ActionResult<AuthResponse>> Google(GoogleAuthRequest request, CancellationToken cancellationToken)
+    {
+        return Ok(await authService.GoogleAuthAsync(request, cancellationToken));
+    }
+
     [HttpGet("me")]
     [Authorize]
     public async Task<ActionResult<CurrentUserResponse>> Me(CancellationToken cancellationToken)

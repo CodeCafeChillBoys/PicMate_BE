@@ -7,6 +7,12 @@ public enum UserRole
     Admin = 3
 }
 
+public enum AuthProvider
+{
+    Local = 1,
+    Google = 2
+}
+
 public enum KycStatus
 {
     NotSubmitted = 1,
@@ -27,7 +33,8 @@ public enum BookingStatus
 
 public enum PaymentProvider
 {
-    VnPay = 1
+    VnPay = 1,
+    Cod = 2
 }
 
 public enum PaymentStatus

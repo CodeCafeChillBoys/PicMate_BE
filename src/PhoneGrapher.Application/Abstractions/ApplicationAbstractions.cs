@@ -7,6 +7,7 @@ public interface IAuthService
 {
     Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default);
     Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
+    Task<AuthResponse> GoogleAuthAsync(GoogleAuthRequest request, CancellationToken cancellationToken = default);
     Task<CurrentUserResponse> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
@@ -28,9 +29,15 @@ public interface IGrapherService
 {
     Task<IReadOnlyList<GrapherSummaryResponse>> SearchAsync(GrapherSearchRequest request, CancellationToken cancellationToken = default);
     Task<GrapherDetailResponse> GetProfileAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<GrapherDetailResponse> GetMyProfileAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<GrapherSummaryResponse> UpsertProfileAsync(Guid userId, UpsertGrapherProfileRequest request, CancellationToken cancellationToken = default);
+    Task SetOnlineStatusAsync(Guid userId, bool isOnline, CancellationToken cancellationToken = default);
     Task ApproveKycAsync(Guid grapherProfileId, bool approved, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ServicePackageResponse>> SeedDefaultPackagesAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ServicePackageResponse>> GetMyServicesAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<ServicePackageResponse> AddServiceAsync(Guid userId, ServiceRequest request, CancellationToken cancellationToken = default);
+    Task<ServicePackageResponse> UpdateServiceAsync(Guid userId, Guid serviceId, ServiceRequest request, CancellationToken cancellationToken = default);
+    Task DeleteServiceAsync(Guid userId, Guid serviceId, CancellationToken cancellationToken = default);
 }
 
 public interface IReviewService
@@ -78,6 +85,25 @@ public interface IVnPayService
 {
     string CreatePaymentUrl(PaymentTransaction payment, string clientIpAddress);
     bool VerifyCallback(IReadOnlyDictionary<string, string> query);
+}
+
+public interface IEmailService
+{
+    Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken cancellationToken = default);
+}
+
+public interface IDisputeService
+{
+    Task<Guid> CreateDisputeAsync(Guid reporterId, CreateDisputeRequest request, CancellationToken cancellationToken = default);
+}
+
+public interface INotificationService
+{
+    Task CreateAsync(Guid userId, string type, string title, string message, Guid? relatedBookingId = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<NotificationResponse>> GetForUserAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task MarkReadAsync(Guid userId, Guid notificationId, CancellationToken cancellationToken = default);
+    Task MarkAllReadAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
 public interface IUnitOfWork
