@@ -77,6 +77,7 @@ internal static class MappingExtensions
             profile.IsOnline,
             profile.IsVerified,
             profile.Bio,
+            profile.User.PhoneNumber,
             profile.StyleTags.Select(x => x.StyleTag.Name).OrderBy(x => x).ToArray(),
             profile.PortfolioItems.OrderBy(x => x.DisplayOrder).Select(x => x.ImageUrl).ToArray(),
             profile.ServicePackages
@@ -88,6 +89,10 @@ internal static class MappingExtensions
                     x.Description,
                     x.Price,
                     x.DurationMinutes))
+                .ToArray(),
+            profile.ActivityAreas
+                .OrderBy(x => x.City)
+                .Select(x => new ActivityAreaResponse(x.Id, x.City, x.District))
                 .ToArray());
     }
 }

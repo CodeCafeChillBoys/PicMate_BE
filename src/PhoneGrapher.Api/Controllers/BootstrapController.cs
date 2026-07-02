@@ -13,6 +13,16 @@ public sealed class BootstrapController(IBootstrapService bootstrapService) : Co
     [AllowAnonymous]
     public async Task<ActionResult<BootstrapResponse>> Get(CancellationToken cancellationToken)
     {
-        return Ok(await bootstrapService.GetAsync(cancellationToken));
+        Guid? userId = null;
+        try
+        {
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                userId = User.GetUserId();
+            }
+        }
+        catch {}
+
+        return Ok(await bootstrapService.GetAsync(userId, cancellationToken));
     }
 }

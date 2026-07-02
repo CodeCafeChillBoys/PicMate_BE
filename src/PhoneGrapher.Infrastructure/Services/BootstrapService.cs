@@ -8,7 +8,7 @@ namespace PhoneGrapher.Infrastructure.Services;
 
 public sealed class BootstrapService(PhoneGrapherDbContext dbContext) : IBootstrapService
 {
-    public async Task<BootstrapResponse> GetAsync(CancellationToken cancellationToken = default)
+    public async Task<BootstrapResponse> GetAsync(Guid? userId = null, CancellationToken cancellationToken = default)
     {
         var graphers = await dbContext.GrapherProfiles
             .AsNoTracking()
@@ -42,6 +42,14 @@ public sealed class BootstrapService(PhoneGrapherDbContext dbContext) : IBootstr
                 x.Price))
             .ToArrayAsync(cancellationToken);
 
+        var favoriteIds = userId.HasValue
+            ? await dbContext.UserFavoriteGraphers
+                .AsNoTracking()
+                .Where(x => x.UserId == userId.Value)
+                .Select(x => x.GrapherProfileId)
+                .ToArrayAsync(cancellationToken)
+            : Array.Empty<Guid>();
+
         return new BootstrapResponse(
             graphers.Select(x => x.ToSummaryResponse()).ToArray(),
             Array.Empty<object>(),
@@ -56,6 +64,6 @@ public sealed class BootstrapService(PhoneGrapherDbContext dbContext) : IBootstr
             Array.Empty<object>(),
             Array.Empty<object>(),
             Array.Empty<object>(),
-            Array.Empty<Guid>());
+            favoriteIds);
     }
 }

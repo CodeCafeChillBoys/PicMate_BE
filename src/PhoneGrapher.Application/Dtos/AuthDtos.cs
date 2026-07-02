@@ -31,4 +31,5 @@ public sealed record CurrentUserResponse(
 
 public sealed record UpdateUserProfileRequest(
     string FullName,
-    string? AvatarUrl);
+    string? AvatarUrl,
+    string? PhoneNumber);
