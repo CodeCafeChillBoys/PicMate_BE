@@ -22,6 +22,7 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
     public DbSet<Dispute> Disputes => Set<Dispute>();
     public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<UserFavoriteGrapher> UserFavoriteGraphers => Set<UserFavoriteGrapher>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -250,6 +251,20 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
             entity.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserFavoriteGrapher>(entity =>
+        {
+            entity.ToTable("user_favorite_graphers");
+            entity.HasIndex(x => new { x.UserId, x.GrapherProfileId }).IsUnique();
+            entity.HasOne(x => x.User)
+                .WithMany(u => u.FavoriteGraphers)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.GrapherProfile)
+                .WithMany(g => g.FavoritedByUsers)
+                .HasForeignKey(x => x.GrapherProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

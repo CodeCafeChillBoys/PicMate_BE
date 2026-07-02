@@ -122,4 +122,19 @@ public sealed class GraphersController(IGrapherService grapherService) : Control
         await grapherService.DeleteServiceAsync(User.GetUserId(), id, cancellationToken);
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/favorite")]
+    [Authorize]
+    public async Task<IActionResult> ToggleFavorite(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await grapherService.ToggleFavoriteAsync(User.GetUserId(), id, cancellationToken);
+            return Ok();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { Error = ex.Message });
+        }
+    }
 }

@@ -39,6 +39,11 @@ public class UsersController : ControllerBase
         
         user.AvatarUrl = request.AvatarUrl; // Allow null to remove avatar
 
+        if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+        {
+            user.PhoneNumber = request.PhoneNumber.Trim();
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(new CurrentUserResponse(

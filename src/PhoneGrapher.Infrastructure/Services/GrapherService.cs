@@ -152,6 +152,26 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
         }
         dbContext.GrapherStyleTags.AddRange(styleLinks);
 
+        // ── Activity Areas ─────────────────────────────────────────────────
+        if (request.ActivityAreas is not null)
+        {
+            var existingAreas = await dbContext.GrapherActivityAreas
+                .Where(a => a.GrapherProfileId == profile.Id)
+                .ToListAsync(cancellationToken);
+            dbContext.GrapherActivityAreas.RemoveRange(existingAreas);
+
+            var newAreas = request.ActivityAreas
+                .Where(a => !string.IsNullOrWhiteSpace(a.City))
+                .Select(a => new GrapherActivityArea
+                {
+                    GrapherProfileId = profile.Id,
+                    City = a.City.Trim(),
+                    District = a.District?.Trim()
+                })
+                .ToList();
+            dbContext.GrapherActivityAreas.AddRange(newAreas);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var saved = await IncludeSummary(dbContext.GrapherProfiles.AsNoTracking())
@@ -316,6 +336,42 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
         profile.IsOnline = isOnline;
         profile.UpdatedAt = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ToggleFavoriteAsync(Guid userId, Guid grapherProfileId, CancellationToken cancellationToken = default)
+    {
+        var existing = await dbContext.UserFavoriteGraphers
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.GrapherProfileId == grapherProfileId, cancellationToken);
+
+        if (existing is not null)
+        {
+            dbContext.UserFavoriteGraphers.Remove(existing);
+        }
+        else
+        {
+            var exists = await dbContext.GrapherProfiles.AnyAsync(x => x.Id == grapherProfileId, cancellationToken);
+            if (!exists)
+            {
+                throw new KeyNotFoundException($"Grapher profile with ID {grapherProfileId} not found.");
+            }
+
+            dbContext.UserFavoriteGraphers.Add(new UserFavoriteGrapher
+            {
+                UserId = userId,
+                GrapherProfileId = grapherProfileId
+            });
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetFavoriteGrapherIdsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.UserFavoriteGraphers
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .Select(x => x.GrapherProfileId)
+            .ToListAsync(cancellationToken);
     }
 
     private static IQueryable<GrapherProfile> IncludeSummary(IQueryable<GrapherProfile> query)
