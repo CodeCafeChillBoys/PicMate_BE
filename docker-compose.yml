@@ -30,6 +30,13 @@ services:
       VnPay__Locale: vn
       VnPay__CurrencyCode: VND
 
+      GoogleAuth__ClientId: 392349987977-t5g07medk7nfb4kp4v9s9216a197uoef.apps.googleusercontent.com
+      
+      Brevo__Enabled: "true"
+      Brevo__ApiKey: <YOUR_BREVO_API_KEY>
+      Brevo__SenderEmail: picpls202@gmail.com
+      Brevo__SenderName: PICMate
+
     ports:
       - "5274:8080"
 
