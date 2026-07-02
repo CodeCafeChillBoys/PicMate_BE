@@ -18,6 +18,7 @@ public sealed class User : Entity
     public ICollection<Booking> CustomerBookings { get; set; } = new List<Booking>();
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<UserFavoriteGrapher> FavoriteGraphers { get; set; } = new List<UserFavoriteGrapher>();
 }
 
 public sealed class RefreshToken : Entity
@@ -51,6 +52,7 @@ public sealed class GrapherProfile : Entity
     public ICollection<GrapherStyleTag> StyleTags { get; set; } = new List<GrapherStyleTag>();
     public ICollection<GrapherActivityArea> ActivityAreas { get; set; } = new List<GrapherActivityArea>();
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+    public ICollection<UserFavoriteGrapher> FavoritedByUsers { get; set; } = new List<UserFavoriteGrapher>();
 }
 
 public sealed class StyleTag : Entity
@@ -228,4 +230,13 @@ public sealed class SystemSettings : Entity
     public bool EmailNotifyDispute { get; set; } = true;
     /// <summary>Chế độ bảo trì</summary>
     public bool MaintenanceMode { get; set; } = false;
+}
+
+public sealed class UserFavoriteGrapher : Entity
+{
+    public Guid UserId { get; set; }
+    public Guid GrapherProfileId { get; set; }
+
+    public User User { get; set; } = null!;
+    public GrapherProfile GrapherProfile { get; set; } = null!;
 }

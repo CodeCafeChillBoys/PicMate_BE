@@ -38,6 +38,8 @@ public interface IGrapherService
     Task<ServicePackageResponse> AddServiceAsync(Guid userId, ServiceRequest request, CancellationToken cancellationToken = default);
     Task<ServicePackageResponse> UpdateServiceAsync(Guid userId, Guid serviceId, ServiceRequest request, CancellationToken cancellationToken = default);
     Task DeleteServiceAsync(Guid userId, Guid serviceId, CancellationToken cancellationToken = default);
+    Task ToggleFavoriteAsync(Guid userId, Guid grapherProfileId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Guid>> GetFavoriteGrapherIdsAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
 public interface IReviewService
@@ -47,7 +49,7 @@ public interface IReviewService
 
 public interface IBootstrapService
 {
-    Task<BootstrapResponse> GetAsync(CancellationToken cancellationToken = default);
+    Task<BootstrapResponse> GetAsync(Guid? userId = null, CancellationToken cancellationToken = default);
 }
 
 public interface IAdminService

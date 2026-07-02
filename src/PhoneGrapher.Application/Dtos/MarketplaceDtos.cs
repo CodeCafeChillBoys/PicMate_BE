@@ -37,9 +37,11 @@ public sealed record GrapherDetailResponse(
     bool IsOnline,
     bool IsVerified,
     string Bio,
+    string? PhoneNumber,
     IReadOnlyList<string> Styles,
     IReadOnlyList<string> Portfolio,
-    IReadOnlyList<ServicePackageResponse> Packages);
+    IReadOnlyList<ServicePackageResponse> Packages,
+    IReadOnlyList<ActivityAreaResponse> ActivityAreas);
 
 public sealed record ServicePackageResponse(
     Guid Id,
@@ -54,7 +56,12 @@ public sealed record UpsertGrapherProfileRequest(
     string? District,
     IReadOnlyList<string> Styles,
     IReadOnlyList<string> Portfolio,
-    IReadOnlyList<UpsertServicePackageRequest> ServicePackages);
+    IReadOnlyList<UpsertServicePackageRequest> ServicePackages,
+    IReadOnlyList<ActivityAreaRequest>? ActivityAreas);
+
+public sealed record ActivityAreaRequest(string City, string? District);
+
+public sealed record ActivityAreaResponse(Guid Id, string City, string? District);
 
 public sealed record UpsertServicePackageRequest(
     Guid? Id,

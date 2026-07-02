@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PhoneGrapher.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using PhoneGrapher.Infrastructure.Persistence;
 namespace PhoneGrapher.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PhoneGrapherDbContext))]
-    partial class PhoneGrapherDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260702150251_AddFavoriteGraphers")]
+    partial class AddFavoriteGraphers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -91,25 +94,6 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                     b.HasIndex("GrapherProfileId", "ScheduledAt");
 
                     b.ToTable("bookings", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("70000000-0000-0000-0000-000000000001"),
-                            CompletedAt = new DateTimeOffset(new DateTime(2026, 1, 3, 2, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            CustomerId = new Guid("20000000-0000-0000-0000-000000000002"),
-                            DurationMinutes = 60,
-                            GrapherPayoutAmount = 135000m,
-                            GrapherProfileId = new Guid("30000000-0000-0000-0000-000000000001"),
-                            Location = "Đường sách Nguyễn Văn Bình, Quận 1, TP.HCM",
-                            Note = "Mang theo phụ kiện vintage nhé",
-                            PlatformFeeAmount = 15000m,
-                            ScheduledAt = new DateTimeOffset(new DateTime(2026, 1, 3, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            ServicePackageId = new Guid("40000000-0000-0000-0000-000000000001"),
-                            Status = "Completed",
-                            TotalAmount = 150000m
-                        });
                 });
 
             modelBuilder.Entity("PhoneGrapher.Domain.Entities.Dispute", b =>
@@ -203,24 +187,6 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                     b.HasIndex("City", "District");
 
                     b.ToTable("grapher_activity_areas", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("60000000-0000-0000-0000-000000000002"),
-                            City = "TP.HCM",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            District = "Quận 1",
-                            GrapherProfileId = new Guid("30000000-0000-0000-0000-000000000001")
-                        },
-                        new
-                        {
-                            Id = new Guid("60000000-0000-0000-0000-000000000003"),
-                            City = "TP.HCM",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            District = "Quận 3",
-                            GrapherProfileId = new Guid("30000000-0000-0000-0000-000000000001")
-                        });
                 });
 
             modelBuilder.Entity("PhoneGrapher.Domain.Entities.GrapherPortfolioItem", b =>
@@ -260,7 +226,6 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                         new
                         {
                             Id = new Guid("50000000-0000-0000-0000-000000000001"),
-                            Caption = "Mùa thu Hà Nội",
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DisplayOrder = 1,
                             GrapherProfileId = new Guid("30000000-0000-0000-0000-000000000001"),
@@ -349,7 +314,6 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                             AverageRating = 4.9m,
                             Bio = "Sinh viên đam mê chụp ảnh bằng điện thoại, chuyên ảnh lifestyle và vintage.",
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            District = "Quận 1",
                             IsOnline = true,
                             IsVerified = true,
                             KycStatus = "Approved",
@@ -474,17 +438,6 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                     b.HasIndex("SenderId");
 
                     b.ToTable("messages", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("a0000000-0000-0000-0000-000000000001"),
-                            Content = "Chào bạn, mình muốn book lịch chụp cuối tuần này",
-                            CreatedAt = new DateTimeOffset(new DateTime(2025, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            IsRead = true,
-                            ReceiverId = new Guid("20000000-0000-0000-0000-000000000001"),
-                            SenderId = new Guid("20000000-0000-0000-0000-000000000002")
-                        });
                 });
 
             modelBuilder.Entity("PhoneGrapher.Domain.Entities.Notification", b =>
@@ -607,24 +560,6 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("payment_transactions", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("80000000-0000-0000-0000-000000000001"),
-                            Amount = 150000m,
-                            BookingId = new Guid("70000000-0000-0000-0000-000000000001"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            EscrowStatus = "Released",
-                            GrapherPayoutAmount = 135000m,
-                            PaidAt = new DateTimeOffset(new DateTime(2026, 1, 2, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            PlatformFeeAmount = 15000m,
-                            Provider = "VnPay",
-                            ProviderTransactionId = "VNPAY_987654321",
-                            ReleasedAt = new DateTimeOffset(new DateTime(2026, 1, 3, 2, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Status = "Succeeded",
-                            TransactionCode = "TXN_123456789"
-                        });
                 });
 
             modelBuilder.Entity("PhoneGrapher.Domain.Entities.Preset", b =>
@@ -772,18 +707,6 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                     b.ToTable("reviews", null, t =>
                         {
                             t.HasCheckConstraint("ck_reviews_rating_range", "\"Rating\" >= 1 AND \"Rating\" <= 5");
-                        });
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("90000000-0000-0000-0000-000000000001"),
-                            BookingId = new Guid("70000000-0000-0000-0000-000000000001"),
-                            Comment = "Nháy rất nhiệt tình, ảnh đẹp và gửi nhanh chóng. Sẽ ủng hộ lại!",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 3, 3, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            CustomerId = new Guid("20000000-0000-0000-0000-000000000002"),
-                            GrapherProfileId = new Guid("30000000-0000-0000-0000-000000000001"),
-                            Rating = 5
                         });
                 });
 
@@ -968,18 +891,6 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                             PhoneNumber = "0900000001",
                             Provider = "Local",
                             Role = "Grapher"
-                        },
-                        new
-                        {
-                            Id = new Guid("20000000-0000-0000-0000-000000000002"),
-                            AvatarUrl = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=96&h=96&fit=crop",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Email = "customer@picmate.vn",
-                            FullName = "Trần Bình",
-                            IsActive = true,
-                            PasswordHash = "seeded-user-register-again-to-login",
-                            PhoneNumber = "0900000002",
-                            Role = "Customer"
                         });
                 });
 
