@@ -13,7 +13,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
 
       ConnectionStrings__DefaultConnection: >
-        Host=dpg-d9hio5km0tmc73av8r9g-a;Port=5432;Database=picmatedb_irkm;Username=picmateuser;Password=MQYIAmQea0VN26iftaZ1TfH8ns2Mxn0h;SSL Mode=Prefer;Trust Server Certificate=true
+        Host=dpg-d9hio5km0tmc73av8r9g-a.singapore-postgres.render.com;Port=5432;Database=picmatedb_irkm;Username=picmateuser;Password=MQYIAmQea0VN26iftaZ1TfH8ns2Mxn0h;SSL Mode=Require;Trust Server Certificate=true
 
       Jwt__Issuer: PhoneGrapher.Api
       Jwt__Audience: PhoneGrapher.Client
