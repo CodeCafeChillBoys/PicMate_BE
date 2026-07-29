@@ -273,41 +273,42 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
     public async Task<IReadOnlyList<AdminActivityResponse>> GetRecentActivitiesAsync(
         CancellationToken cancellationToken = default)
     {
-        var activities = new List<AdminActivityResponse>();
+        // Giữ mốc thời gian thật bên cạnh bản ghi để sắp xếp cho đúng.
+        // Trước đây danh sách được sắp theo chuỗi đã định dạng ("2 giờ trước", "14/06/2026"),
+        // so sánh chuỗi như vậy cho ra thứ tự vô nghĩa dù tiêu đề ghi "mới nhất trước".
+        var activities = new List<(DateTimeOffset OccurredAt, AdminActivityResponse Item)>();
 
         var recentBookings = await dbContext.Bookings
             .AsNoTracking()
             .Include(b => b.Customer)
             .Include(b => b.GrapherProfile).ThenInclude(gp => gp.User)
             .OrderByDescending(b => b.CreatedAt)
-            .Take(5)
+            .Take(12)
             .ToArrayAsync(cancellationToken);
 
         foreach (var b in recentBookings)
         {
-            activities.Add(new AdminActivityResponse(
+            activities.Add((b.CreatedAt, new AdminActivityResponse(
                 $"booking-{b.Id}",
                 "📸",
                 $"{b.Customer.FullName} đặt lịch với {b.GrapherProfile.User.FullName}",
-                FormatTimeAgo(b.CreatedAt)
-            ));
+                FormatTimeAgo(b.CreatedAt))));
         }
 
         var recentUsers = await dbContext.Users
             .AsNoTracking()
             .Where(u => u.Role == UserRole.Customer)
             .OrderByDescending(u => u.CreatedAt)
-            .Take(3)
+            .Take(6)
             .ToArrayAsync(cancellationToken);
 
         foreach (var u in recentUsers)
         {
-            activities.Add(new AdminActivityResponse(
+            activities.Add((u.CreatedAt, new AdminActivityResponse(
                 $"user-{u.Id}",
                 "👤",
                 $"{u.FullName} đăng ký tài khoản mới",
-                FormatTimeAgo(u.CreatedAt)
-            ));
+                FormatTimeAgo(u.CreatedAt))));
         }
 
         var recentKyc = await dbContext.GrapherProfiles
@@ -315,22 +316,23 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
             .Include(p => p.User)
             .Where(p => p.KycStatus == KycStatus.Pending)
             .OrderByDescending(p => p.UpdatedAt)
-            .Take(2)
+            .Take(4)
             .ToArrayAsync(cancellationToken);
 
         foreach (var p in recentKyc)
         {
-            activities.Add(new AdminActivityResponse(
+            var occurredAt = p.UpdatedAt ?? p.CreatedAt;
+            activities.Add((occurredAt, new AdminActivityResponse(
                 $"kyc-{p.Id}",
                 "🆔",
                 $"{p.User.FullName} gửi yêu cầu xác minh KYC",
-                FormatTimeAgo(p.UpdatedAt ?? p.CreatedAt)
-            ));
+                FormatTimeAgo(occurredAt))));
         }
 
         return activities
-            .OrderByDescending(a => a.Time)
-            .Take(10)
+            .OrderByDescending(x => x.OccurredAt)
+            .Take(14)
+            .Select(x => x.Item)
             .ToArray();
     }
 
