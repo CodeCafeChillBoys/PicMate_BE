@@ -18,6 +18,7 @@ public static class DependencyInjection
     {
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<VnPayOptions>(configuration.GetSection(VnPayOptions.SectionName));
+        services.Configure<VietQrOptions>(configuration.GetSection(VietQrOptions.SectionName));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
         services.Configure<BrevoOptions>(configuration.GetSection(BrevoOptions.SectionName));
         services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
@@ -29,6 +30,10 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IVnPayService, VnPayService>();
+        services.AddScoped<IVietQrService, VietQrService>();
+        services.AddScoped<PaymentSucceededNotifier>();
+        services.AddScoped<IPaymentReconciliationService, PaymentReconciliationService>();
+        services.AddHostedService<PendingPaymentCleanupService>();
         // Chọn nhà cung cấp email: Brevo (HTTP API, chạy được trên Render free) nếu bật, ngược lại dùng SMTP (Gmail – cho local).
         services.AddScoped<SmtpEmailService>();
         services.AddScoped<BrevoEmailService>();

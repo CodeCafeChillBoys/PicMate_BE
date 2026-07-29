@@ -1,11 +1,13 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PhoneGrapher.Application.Abstractions;
 using PhoneGrapher.Application.Dtos;
 using PhoneGrapher.Domain.Entities;
 using PhoneGrapher.Domain.Enums;
 using PhoneGrapher.Infrastructure.Emails;
+using PhoneGrapher.Infrastructure.Options;
 using PhoneGrapher.Infrastructure.Persistence;
 
 namespace PhoneGrapher.Infrastructure.Services;
@@ -15,7 +17,8 @@ public sealed class BookingService(
     IVnPayService vnPayService,
     IEmailService emailService,
     INotificationService notificationService,
-    ILogger<BookingService> logger) : IBookingService
+    ILogger<BookingService> logger,
+    IOptions<VietQrOptions> vietQrOptions) : IBookingService
 {
     private const decimal PlatformFeeRate = 0.15m;
 
@@ -65,7 +68,9 @@ public sealed class BookingService(
 
         var platformFee = decimal.Round(package.Price * PlatformFeeRate, 2);
         var payout = package.Price - platformFee;
-        var isCod = string.Equals(request.PaymentMethod, "cod", StringComparison.OrdinalIgnoreCase);
+        var paymentMethod = (request.PaymentMethod ?? "vnpay").Trim().ToLowerInvariant();
+        var isCod = paymentMethod == "cod";
+        var isVietQr = paymentMethod == "vietqr";
 
         await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
@@ -88,11 +93,18 @@ public sealed class BookingService(
         var payment = new PaymentTransaction
         {
             Booking = booking,
-            Provider = isCod ? PaymentProvider.Cod : PaymentProvider.VnPay,
+            Provider = isCod
+                ? PaymentProvider.Cod
+                : isVietQr ? PaymentProvider.VietQr : PaymentProvider.VnPay,
             Amount = booking.TotalAmount,
             PlatformFeeAmount = platformFee,
             GrapherPayoutAmount = payout,
-            TransactionCode = CreateTransactionCode()
+            TransactionCode = isVietQr
+                ? await CreateVietQrTransactionCodeAsync(cancellationToken)
+                : CreateTransactionCode(),
+            ExpiresAt = isVietQr
+                ? DateTimeOffset.UtcNow.AddMinutes(vietQrOptions.Value.ExpiryMinutes)
+                : null
         };
 
         dbContext.Bookings.Add(booking);
@@ -105,6 +117,13 @@ public sealed class BookingService(
         {
             await NotifySafeAsync(package.GrapherProfile.UserId, "booking_new", "Đơn đặt mới",
                 "Bạn có một đơn đặt lịch mới (trả sau) đang chờ xác nhận.", booking.Id, cancellationToken);
+            return new CreateBookingPaymentResponse(booking.ToResponse(), string.Empty);
+        }
+
+        // VietQR: chưa có tiền nên chưa báo thợ. FE tự điều hướng sang trang quét mã,
+        // không dùng PaymentUrl.
+        if (isVietQr)
+        {
             return new CreateBookingPaymentResponse(booking.ToResponse(), string.Empty);
         }
 
@@ -371,6 +390,25 @@ public sealed class BookingService(
     private static string CreateTransactionCode()
     {
         return $"PG{DateTimeOffset.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(100000, 999999)}";
+    }
+
+    // Mã ngắn để khách gõ tay nội dung chuyển khoản không bị sai.
+    // TransactionCode có unique index nên phải kiểm tra trùng trước khi dùng.
+    private async Task<string> CreateVietQrTransactionCodeAsync(CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var code = $"PIC{Random.Shared.Next(100_000_000, 1_000_000_000)}";
+            var exists = await dbContext.PaymentTransactions
+                .AnyAsync(x => x.TransactionCode == code, cancellationToken);
+
+            if (!exists)
+            {
+                return code;
+            }
+        }
+
+        throw new InvalidOperationException("Không sinh được mã giao dịch VietQR duy nhất sau 5 lần thử.");
     }
 
     public async Task<BookingDetailResponse> GetBookingDetailAsync(Guid bookingId, Guid userId, CancellationToken cancellationToken = default)

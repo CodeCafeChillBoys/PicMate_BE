@@ -64,7 +64,13 @@ internal static class MappingExtensions
             new GrapherPricingResponse(hourly, daily == 0 ? hourly : daily));
     }
 
-    public static GrapherDetailResponse ToDetailResponse(this GrapherProfile profile)
+    /// <param name="reviews">
+    /// Review của thợ, truy vấn riêng vì GrapherProfile không có navigation tới Review.
+    /// Bỏ trống khi nơi gọi không cần hiển thị đánh giá.
+    /// </param>
+    public static GrapherDetailResponse ToDetailResponse(
+        this GrapherProfile profile,
+        IReadOnlyList<GrapherReviewResponse>? reviews = null)
     {
         return new GrapherDetailResponse(
             profile.Id,
@@ -93,6 +99,7 @@ internal static class MappingExtensions
             profile.ActivityAreas
                 .OrderBy(x => x.City)
                 .Select(x => new ActivityAreaResponse(x.Id, x.City, x.District))
-                .ToArray());
+                .ToArray(),
+            reviews ?? []);
     }
 }

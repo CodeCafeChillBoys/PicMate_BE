@@ -51,4 +51,43 @@ public sealed class ReviewService(PhoneGrapherDbContext dbContext) : IReviewServ
 
         return new ReviewResponse(review.Id, review.BookingId, review.Rating, review.Comment, review.CreatedAt);
     }
+
+    public async Task<IReadOnlyList<TestimonialResponse>> GetFeaturedAsync(
+        int take = 6,
+        CancellationToken cancellationToken = default)
+    {
+        // Trang chủ là mặt tiền: chỉ lấy review từ 4 sao và có viết nội dung.
+        return await dbContext.Reviews
+            .AsNoTracking()
+            .Where(x => x.Rating >= 4 && x.Comment != null && x.Comment.Trim() != string.Empty)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(take)
+            .Select(x => new TestimonialResponse(
+                x.Id,
+                x.Rating,
+                x.Comment,
+                x.Customer.FullName,
+                x.Booking.ServicePackage.Name,
+                x.Customer.AvatarUrl))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<GrapherReviewResponse>> GetForGrapherAsync(
+        Guid grapherProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        // Trang thợ hiển thị đầy đủ, kể cả điểm thấp: khách cần thấy bức tranh thật.
+        return await dbContext.Reviews
+            .AsNoTracking()
+            .Where(x => x.GrapherProfileId == grapherProfileId)
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new GrapherReviewResponse(
+                x.Id,
+                x.Rating,
+                x.Comment,
+                x.Customer.FullName,
+                x.CreatedAt,
+                x.Customer.AvatarUrl))
+            .ToArrayAsync(cancellationToken);
+    }
 }

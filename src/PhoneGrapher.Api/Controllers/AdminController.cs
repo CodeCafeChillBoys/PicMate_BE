@@ -10,7 +10,8 @@ namespace PhoneGrapher.Api.Controllers;
 [Route("api/admin")]
 public sealed class AdminController(
     IGrapherService grapherService,
-    IAdminService adminService) : ControllerBase
+    IAdminService adminService,
+    IPaymentReconciliationService reconciliationService) : ControllerBase
 {
     // ── Revenue / Stats ──────────────────────────────────────────────────────
 
@@ -163,5 +164,39 @@ public sealed class AdminController(
         CancellationToken cancellationToken)
     {
         return Ok(await adminService.GetBookingDetailAsync(id, cancellationToken));
+    }
+
+    // ── Đối soát thanh toán VietQR ───────────────────────────────────────────
+
+    [HttpGet("payments/pending")]
+    public async Task<ActionResult<IReadOnlyList<PendingPaymentResponse>>> PendingPayments(CancellationToken cancellationToken)
+    {
+        return Ok(await reconciliationService.GetPendingAsync(cancellationToken));
+    }
+
+    [HttpGet("payments/recently-expired")]
+    public async Task<ActionResult<IReadOnlyList<PendingPaymentResponse>>> RecentlyExpiredPayments(CancellationToken cancellationToken)
+    {
+        return Ok(await reconciliationService.GetRecentlyExpiredAsync(cancellationToken));
+    }
+
+    [HttpPost("payments/{paymentId:guid}/verify")]
+    public async Task<ActionResult<PaymentStatusResponse>> VerifyPayment(
+        Guid paymentId,
+        VerifyPaymentRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await reconciliationService.VerifyAsync(paymentId, User.GetUserId(), request, cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Error = ex.Message });
+        }
     }
 }

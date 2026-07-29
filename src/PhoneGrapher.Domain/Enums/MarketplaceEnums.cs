@@ -34,7 +34,8 @@ public enum BookingStatus
 public enum PaymentProvider
 {
     VnPay = 1,
-    Cod = 2
+    Cod = 2,
+    VietQr = 3
 }
 
 public enum PaymentStatus
@@ -42,7 +43,9 @@ public enum PaymentStatus
     Pending = 1,
     Succeeded = 2,
     Failed = 3,
-    Refunded = 4
+    Refunded = 4,
+    /// <summary>Khách đã báo chuyển khoản, đang chờ admin đối soát.</summary>
+    AwaitingVerification = 5
 }
 
 public enum EscrowStatus

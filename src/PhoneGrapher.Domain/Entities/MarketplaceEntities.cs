@@ -144,6 +144,16 @@ public sealed class PaymentTransaction : Entity
     public DateTimeOffset? ReleasedAt { get; set; }
     public string? RawCallbackPayload { get; set; }
 
+    /// <summary>Hạn thanh toán. Chỉ đặt cho VietQR.</summary>
+    public DateTimeOffset? ExpiresAt { get; set; }
+    /// <summary>Thời điểm khách bấm "Tôi đã chuyển khoản". Khác null = miễn nhiễm với job tự huỷ.</summary>
+    public DateTimeOffset? CustomerClaimedAt { get; set; }
+    /// <summary>Admin đã duyệt hoặc từ chối giao dịch này.</summary>
+    public Guid? VerifiedByUserId { get; set; }
+    public DateTimeOffset? VerifiedAt { get; set; }
+    /// <summary>Ghi chú của admin, bắt buộc khi từ chối.</summary>
+    public string? VerificationNote { get; set; }
+
     public Booking Booking { get; set; } = null!;
 }
 

@@ -7,7 +7,9 @@ using PhoneGrapher.Infrastructure.Persistence;
 
 namespace PhoneGrapher.Infrastructure.Services;
 
-public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherService
+public sealed class GrapherService(
+    PhoneGrapherDbContext dbContext,
+    IReviewService reviewService) : IGrapherService
 {
     public async Task<IReadOnlyList<GrapherSummaryResponse>> SearchAsync(GrapherSearchRequest request, CancellationToken cancellationToken = default)
     {
@@ -64,7 +66,8 @@ public sealed class GrapherService(PhoneGrapherDbContext dbContext) : IGrapherSe
             throw new KeyNotFoundException($"Grapher profile with ID {id} not found.");
         }
 
-        return profile.ToDetailResponse();
+        var reviews = await reviewService.GetForGrapherAsync(id, cancellationToken);
+        return profile.ToDetailResponse(reviews);
     }
 
     public async Task<GrapherSummaryResponse> UpsertProfileAsync(Guid userId, UpsertGrapherProfileRequest request, CancellationToken cancellationToken = default)

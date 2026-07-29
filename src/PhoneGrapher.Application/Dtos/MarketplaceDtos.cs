@@ -41,7 +41,8 @@ public sealed record GrapherDetailResponse(
     IReadOnlyList<string> Styles,
     IReadOnlyList<string> Portfolio,
     IReadOnlyList<ServicePackageResponse> Packages,
-    IReadOnlyList<ActivityAreaResponse> ActivityAreas);
+    IReadOnlyList<ActivityAreaResponse> ActivityAreas,
+    IReadOnlyList<GrapherReviewResponse> Reviews);
 
 public sealed record ServicePackageResponse(
     Guid Id,
@@ -94,6 +95,25 @@ public sealed record ReviewResponse(
     string Comment,
     DateTimeOffset CreatedAt);
 
+/// <summary>Review đã chọn lọc để hiển thị ở mục "Khách hàng nói gì?" trên trang chủ.</summary>
+/// <param name="Role">Tên gói dịch vụ khách đã đặt, hiển thị dưới tên khách.</param>
+public sealed record TestimonialResponse(
+    Guid Id,
+    int Rating,
+    string Text,
+    string Name,
+    string Role,
+    string? Avatar);
+
+/// <summary>Review hiển thị trong tab "Đánh giá" của trang thợ.</summary>
+public sealed record GrapherReviewResponse(
+    Guid Id,
+    int Rating,
+    string Text,
+    string User,
+    DateTimeOffset CreatedAt,
+    string? Avatar);
+
 public sealed record PresetResponse(
     Guid Id,
     string Name,
@@ -111,7 +131,7 @@ public sealed record BootstrapResponse(
     IReadOnlyList<string> BookingStatuses,
     IReadOnlyList<object> Bookings,
     IReadOnlyList<object> DemoAccounts,
-    IReadOnlyList<object> Testimonials,
+    IReadOnlyList<TestimonialResponse> Testimonials,
     IReadOnlyList<object> MembershipPlans,
     IReadOnlyList<object> MockUsers,
     IReadOnlyList<object> MockDisputes,

@@ -6,7 +6,9 @@ using PhoneGrapher.Infrastructure.Persistence;
 
 namespace PhoneGrapher.Infrastructure.Services;
 
-public sealed class BootstrapService(PhoneGrapherDbContext dbContext) : IBootstrapService
+public sealed class BootstrapService(
+    PhoneGrapherDbContext dbContext,
+    IReviewService reviewService) : IBootstrapService
 {
     public async Task<BootstrapResponse> GetAsync(Guid? userId = null, CancellationToken cancellationToken = default)
     {
@@ -50,6 +52,8 @@ public sealed class BootstrapService(PhoneGrapherDbContext dbContext) : IBootstr
                 .ToArrayAsync(cancellationToken)
             : Array.Empty<Guid>();
 
+        var testimonials = await reviewService.GetFeaturedAsync(cancellationToken: cancellationToken);
+
         return new BootstrapResponse(
             graphers.Select(x => x.ToSummaryResponse()).ToArray(),
             Array.Empty<object>(),
@@ -58,7 +62,7 @@ public sealed class BootstrapService(PhoneGrapherDbContext dbContext) : IBootstr
             Enum.GetNames<BookingStatus>(),
             Array.Empty<object>(),
             Array.Empty<object>(),
-            Array.Empty<object>(),
+            testimonials,
             Array.Empty<object>(),
             Array.Empty<object>(),
             Array.Empty<object>(),
