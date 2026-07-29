@@ -52,7 +52,8 @@ builder.Services.AddCors(options => {
         policy.WithOrigins(
                 "http://localhost:5173", 
                 "https://localhost:5173", 
-                "https://pic-mate-fe.vercel.app"
+                "https://pic-mate-fe.vercel.app",
+                "https://pic-mate-beryl.vercel.app"
               )
               .SetIsOriginAllowed(origin => origin.EndsWith(".vercel.app"))
               .AllowAnyMethod()
