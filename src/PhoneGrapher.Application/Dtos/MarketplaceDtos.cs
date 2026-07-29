@@ -235,7 +235,12 @@ public sealed record AdminBookingResponse(
     /// <summary>Null khi đơn chưa có giao dịch thanh toán nào.</summary>
     Guid? PaymentId,
     string? PaymentProvider,
-    string? PaymentStatus);
+    string? PaymentStatus,
+    /// <summary>
+    /// Ngày tạo đơn. Khác với <c>Date</c> vốn là ngày chụp đã hẹn.
+    /// Bộ lọc khoảng ngày và biểu đồ số đơn theo ngày đều dựa trên mốc này.
+    /// </summary>
+    DateTimeOffset CreatedAt);
 
 /// <summary>Yêu cầu admin đánh dấu một đơn đã được hoàn tiền.</summary>
 public sealed record RefundBookingRequest(string? Note);

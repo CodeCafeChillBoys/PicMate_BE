@@ -284,7 +284,8 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
             b.Customer.FullName,
             b.PaymentTransaction?.Id,
             b.PaymentTransaction?.Provider.ToString(),
-            b.PaymentTransaction?.Status.ToString()
+            b.PaymentTransaction?.Status.ToString(),
+            b.CreatedAt
         )).ToArray();
     }
 
@@ -656,7 +657,8 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
                 user.FullName,
                 b.PaymentTransaction?.Id,
                 b.PaymentTransaction?.Provider.ToString(),
-                b.PaymentTransaction?.Status.ToString()
+                b.PaymentTransaction?.Status.ToString(),
+                b.CreatedAt
             )).ToArray();
 
         return new AdminUserDetailResponse(
