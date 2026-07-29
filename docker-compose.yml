@@ -37,6 +37,9 @@ services:
       Brevo__SenderEmail: picpls202@gmail.com
       Brevo__SenderName: PICMate
 
+      GeminiSettings__ApiKey: <YOUR_GEMINI_API_KEY>
+      GeminiSettings__ModelName: gemini-2.5-flash
+
     ports:
       - "5274:8080"
 
