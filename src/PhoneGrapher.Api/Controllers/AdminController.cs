@@ -11,8 +11,19 @@ namespace PhoneGrapher.Api.Controllers;
 public sealed class AdminController(
     IGrapherService grapherService,
     IAdminService adminService,
-    IPaymentReconciliationService reconciliationService) : ControllerBase
+    IPaymentReconciliationService reconciliationService,
+    IAdminAnalyticsService analyticsService) : ControllerBase
 {
+    // ── Dashboard Tổng quan ──────────────────────────────────────────────────
+
+    [HttpGet("analytics")]
+    public async Task<ActionResult<AdminAnalyticsResponse>> Analytics(
+        [FromQuery] string? range,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await analyticsService.GetAsync(range, cancellationToken));
+    }
+
     // ── Revenue / Stats ──────────────────────────────────────────────────────
 
     [HttpGet("revenue")]

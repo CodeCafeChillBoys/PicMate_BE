@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<IReviewService, ReviewService>();
         services.AddScoped<IBootstrapService, BootstrapService>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<IAdminAnalyticsService, Services.Analytics.AdminAnalyticsService>();
 
         return services;
     }

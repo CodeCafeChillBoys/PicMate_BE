@@ -97,6 +97,15 @@ public interface IVnPayService
     bool VerifyCallback(IReadOnlyDictionary<string, string> query);
 }
 
+public interface IAdminAnalyticsService
+{
+    /// <summary>
+    /// Toàn bộ dữ liệu cho dashboard Tổng quan trong một lần gọi.
+    /// </summary>
+    /// <param name="range">today | 7d | 30d | quarter. Giá trị lạ sẽ rơi về 30d.</param>
+    Task<AdminAnalyticsResponse> GetAsync(string? range, CancellationToken cancellationToken = default);
+}
+
 public interface IVietQrService
 {
     /// <summary>

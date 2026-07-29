@@ -454,7 +454,10 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
                 ZaloPayEnabled: false,
                 EmailNotifyNewBooking: true,
                 EmailNotifyDispute: true,
-                MaintenanceMode: false);
+                MaintenanceMode: false,
+                QuarterlyRevenueTarget: 50_000_000m,
+                VerifiedGrapherTarget: 50,
+                CompletionRateTarget: 90m);
         }
 
         return ToSettingsResponse(settings);
@@ -482,6 +485,9 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
         settings.EmailNotifyNewBooking = request.EmailNotifyNewBooking;
         settings.EmailNotifyDispute = request.EmailNotifyDispute;
         settings.MaintenanceMode = request.MaintenanceMode;
+        settings.QuarterlyRevenueTarget = request.QuarterlyRevenueTarget;
+        settings.VerifiedGrapherTarget = request.VerifiedGrapherTarget;
+        settings.CompletionRateTarget = request.CompletionRateTarget;
         settings.UpdatedAt = DateTimeOffset.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -627,7 +633,8 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
 
     private static SystemSettingsResponse ToSettingsResponse(Domain.Entities.SystemSettings s) =>
         new(s.PlatformFeePercent, s.MinWithdrawalAmount, s.MomoEnabled, s.VnPayEnabled,
-            s.ZaloPayEnabled, s.EmailNotifyNewBooking, s.EmailNotifyDispute, s.MaintenanceMode);
+            s.ZaloPayEnabled, s.EmailNotifyNewBooking, s.EmailNotifyDispute, s.MaintenanceMode,
+            s.QuarterlyRevenueTarget, s.VerifiedGrapherTarget, s.CompletionRateTarget);
 
     private static string FormatTimeAgo(DateTimeOffset time)
     {
