@@ -240,6 +240,13 @@ public sealed class SystemSettings : Entity
     public bool EmailNotifyDispute { get; set; } = true;
     /// <summary>Chế độ bảo trì</summary>
     public bool MaintenanceMode { get; set; } = false;
+
+    /// <summary>Chỉ tiêu doanh thu trong quý, đơn vị VNĐ. Dùng cho khối "Mục tiêu quý".</summary>
+    public decimal QuarterlyRevenueTarget { get; set; } = 50_000_000m;
+    /// <summary>Chỉ tiêu số thợ đã duyệt KYC.</summary>
+    public int VerifiedGrapherTarget { get; set; } = 50;
+    /// <summary>Chỉ tiêu tỉ lệ đơn hoàn thành, đơn vị phần trăm.</summary>
+    public decimal CompletionRateTarget { get; set; } = 90m;
 }
 
 public sealed class UserFavoriteGrapher : Entity

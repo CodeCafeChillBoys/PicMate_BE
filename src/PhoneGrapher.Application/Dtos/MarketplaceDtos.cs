@@ -141,6 +141,55 @@ public sealed record BootstrapResponse(
 
 public sealed record MonthlyRevenueItem(int Month, string Label, decimal GrossRevenue, decimal PlatformRevenue, int BookingCount);
 
+// ── Dashboard phân tích ──────────────────────────────────────────────────────
+
+/// <summary>Một chỉ số kèm so sánh với kỳ liền trước và chuỗi số để vẽ sparkline.</summary>
+/// <param name="ChangePercent">
+/// Null khi kỳ trước bằng 0 — không có mẫu số để chia. Frontend hiển thị "—".
+/// </param>
+public sealed record MetricResponse(
+    decimal Current,
+    decimal Previous,
+    decimal? ChangePercent,
+    IReadOnlyList<decimal> Sparkline);
+
+public sealed record AnalyticsKpisResponse(
+    MetricResponse ActiveUsers,
+    MetricResponse ShootMinutes,
+    MetricResponse Revenue,
+    MetricResponse VerifiedGraphers,
+    MetricResponse CompletionRate);
+
+/// <summary>Một mốc trên biểu đồ xu hướng.</summary>
+public sealed record TimeBucketResponse(string Label, DateTimeOffset StartUtc, decimal Value);
+
+/// <summary>Một lát của biểu đồ tròn.</summary>
+public sealed record BreakdownSliceResponse(string Label, decimal Value, decimal Percent);
+
+public sealed record GoalProgressResponse(
+    string Label,
+    decimal Current,
+    decimal Target,
+    decimal Percent);
+
+public sealed record HealthItemResponse(string Name, string Status, bool IsHealthy);
+
+public sealed record SystemHealthResponse(
+    IReadOnlyList<HealthItemResponse> Items,
+    long ApiLatencyMs);
+
+public sealed record AdminAnalyticsResponse(
+    string Range,
+    DateTimeOffset FromUtc,
+    DateTimeOffset ToUtc,
+    AnalyticsKpisResponse Kpis,
+    IReadOnlyList<TimeBucketResponse> RevenueTrend,
+    IReadOnlyList<TimeBucketResponse> ActiveUserTrend,
+    IReadOnlyList<BreakdownSliceResponse> UserComposition,
+    IReadOnlyList<BreakdownSliceResponse> RevenueByGateway,
+    IReadOnlyList<GoalProgressResponse> Goals,
+    SystemHealthResponse Health);
+
 public sealed record RevenueSummaryResponse(
     decimal GrossRevenue,
     decimal PlatformRevenue,
@@ -181,7 +230,20 @@ public sealed record AdminBookingResponse(
     string Date,
     string Location,
     decimal Total,
-    string Status);
+    string Status,
+    string CustomerName,
+    /// <summary>Null khi đơn chưa có giao dịch thanh toán nào.</summary>
+    Guid? PaymentId,
+    string? PaymentProvider,
+    string? PaymentStatus,
+    /// <summary>
+    /// Ngày tạo đơn. Khác với <c>Date</c> vốn là ngày chụp đã hẹn.
+    /// Bộ lọc khoảng ngày và biểu đồ số đơn theo ngày đều dựa trên mốc này.
+    /// </summary>
+    DateTimeOffset CreatedAt);
+
+/// <summary>Yêu cầu admin đánh dấu một đơn đã được hoàn tiền.</summary>
+public sealed record RefundBookingRequest(string? Note);
 
 public sealed record AdminActivityResponse(
     string Id,
@@ -242,7 +304,10 @@ public sealed record SystemSettingsResponse(
     bool ZaloPayEnabled,
     bool EmailNotifyNewBooking,
     bool EmailNotifyDispute,
-    bool MaintenanceMode);
+    bool MaintenanceMode,
+    decimal QuarterlyRevenueTarget,
+    int VerifiedGrapherTarget,
+    decimal CompletionRateTarget);
 
 public sealed record UpdateSystemSettingsRequest(
     decimal PlatformFeePercent,
@@ -252,7 +317,10 @@ public sealed record UpdateSystemSettingsRequest(
     bool ZaloPayEnabled,
     bool EmailNotifyNewBooking,
     bool EmailNotifyDispute,
-    bool MaintenanceMode);
+    bool MaintenanceMode,
+    decimal QuarterlyRevenueTarget,
+    int VerifiedGrapherTarget,
+    decimal CompletionRateTarget);
 
 // ── Admin – Detail Views ───────────────────────────────────────────────────
 

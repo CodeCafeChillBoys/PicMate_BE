@@ -237,18 +237,34 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
 
     public async Task<IReadOnlyList<AdminBookingResponse>> GetAllBookingsAsync(
         string? status,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
         CancellationToken cancellationToken = default)
     {
         var query = dbContext.Bookings
             .AsNoTracking()
+            .Include(b => b.Customer)
             .Include(b => b.GrapherProfile).ThenInclude(gp => gp.User)
             .Include(b => b.ServicePackage)
+            .Include(b => b.PaymentTransaction)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status) && status != "all")
         {
             if (Enum.TryParse<BookingStatus>(status, ignoreCase: true, out var statusEnum))
                 query = query.Where(b => b.Status == statusEnum);
+        }
+
+        // Lọc theo ngày tạo đơn. Mốc "đến" đã được controller đẩy sang đầu ngày kế tiếp
+        // nên ở đây dùng so sánh nhỏ hơn để bao trọn ngày người dùng chọn.
+        if (fromUtc.HasValue)
+        {
+            query = query.Where(b => b.CreatedAt >= fromUtc.Value);
+        }
+
+        if (toUtc.HasValue)
+        {
+            query = query.Where(b => b.CreatedAt < toUtc.Value);
         }
 
         var bookings = await query
@@ -264,8 +280,122 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
             b.ScheduledAt.ToString("dd/MM/yyyy"),
             b.Location,
             b.TotalAmount,
-            b.Status.ToString()
+            b.Status.ToString(),
+            b.Customer.FullName,
+            b.PaymentTransaction?.Id,
+            b.PaymentTransaction?.Provider.ToString(),
+            b.PaymentTransaction?.Status.ToString(),
+            b.CreatedAt
         )).ToArray();
+    }
+
+    // ── Thao tác của admin lên đơn hàng ──────────────────────────────────────
+
+    public async Task<AdminBookingDetailResponse> ForceCompleteBookingAsync(
+        Guid bookingId,
+        Guid adminUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var booking = await LoadBookingForActionAsync(bookingId, cancellationToken);
+
+        if (booking.Status is BookingStatus.Completed or BookingStatus.Cancelled)
+        {
+            throw new InvalidOperationException("Đơn đã hoàn thành hoặc đã huỷ.");
+        }
+
+        if (booking.Status is not (BookingStatus.PendingConfirmation or BookingStatus.Confirmed or BookingStatus.InProgress))
+        {
+            throw new InvalidOperationException("Đơn chưa tới bước có thể hoàn thành.");
+        }
+
+        var payment = booking.PaymentTransaction
+            ?? throw new InvalidOperationException("Đơn này chưa có giao dịch thanh toán.");
+
+        // Admin bỏ qua được kiểm tra "phải là thợ được giao", nhưng không bỏ qua luật tiền:
+        // không đóng đơn khi chưa thu được tiền, trừ đơn trả tiền mặt.
+        var isCod = payment.Provider == PaymentProvider.Cod;
+        if (!isCod && (payment.Status != PaymentStatus.Succeeded || payment.EscrowStatus != EscrowStatus.Held))
+        {
+            throw new InvalidOperationException("Chưa thu được tiền của đơn này nên không thể hoàn thành.");
+        }
+
+        booking.Status = BookingStatus.Completed;
+        booking.CompletedAt = DateTimeOffset.UtcNow;
+        booking.UpdatedAt = DateTimeOffset.UtcNow;
+
+        if (isCod)
+        {
+            payment.Status = PaymentStatus.Succeeded;
+            payment.PaidAt ??= DateTimeOffset.UtcNow;
+        }
+        else
+        {
+            payment.EscrowStatus = EscrowStatus.Released;
+            payment.ReleasedAt = DateTimeOffset.UtcNow;
+        }
+
+        payment.VerifiedByUserId = adminUserId;
+        payment.VerifiedAt = DateTimeOffset.UtcNow;
+        payment.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToBookingDetailResponse(booking);
+    }
+
+    public async Task<AdminBookingDetailResponse> RefundBookingAsync(
+        Guid bookingId,
+        Guid adminUserId,
+        RefundBookingRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var booking = await LoadBookingForActionAsync(bookingId, cancellationToken);
+
+        var payment = booking.PaymentTransaction
+            ?? throw new InvalidOperationException("Đơn này chưa có giao dịch thanh toán.");
+
+        if (payment.Status == PaymentStatus.Refunded)
+        {
+            throw new InvalidOperationException("Đơn này đã được đánh dấu hoàn tiền.");
+        }
+
+        if (payment.Status != PaymentStatus.Succeeded)
+        {
+            throw new InvalidOperationException("Chỉ hoàn tiền được đơn đã thanh toán thành công.");
+        }
+
+        payment.Status = PaymentStatus.Refunded;
+        payment.EscrowStatus = EscrowStatus.Refunded;
+        payment.VerifiedByUserId = adminUserId;
+        payment.VerifiedAt = DateTimeOffset.UtcNow;
+        payment.VerificationNote = string.IsNullOrWhiteSpace(request.Note)
+            ? "Admin đánh dấu đã hoàn tiền."
+            : request.Note.Trim();
+        payment.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // Hoàn tiền cho đơn chưa xong nghĩa là buổi chụp không diễn ra nữa nên huỷ luôn.
+        // Đơn đã hoàn thành thì giữ nguyên trạng thái: đó là hoàn tiền thiện chí sau khi đã chụp.
+        if (booking.Status is not (BookingStatus.Completed or BookingStatus.Cancelled))
+        {
+            booking.Status = BookingStatus.Cancelled;
+            booking.CancellationReason = $"Admin hoàn tiền: {payment.VerificationNote}";
+            booking.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToBookingDetailResponse(booking);
+    }
+
+    private async Task<Domain.Entities.Booking> LoadBookingForActionAsync(
+        Guid bookingId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.Bookings
+            .Include(b => b.Customer)
+            .Include(b => b.GrapherProfile).ThenInclude(gp => gp.User)
+            .Include(b => b.ServicePackage)
+            .Include(b => b.PaymentTransaction)
+            .FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn hàng.");
     }
 
     // ── Activities ───────────────────────────────────────────────────────────
@@ -273,41 +403,42 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
     public async Task<IReadOnlyList<AdminActivityResponse>> GetRecentActivitiesAsync(
         CancellationToken cancellationToken = default)
     {
-        var activities = new List<AdminActivityResponse>();
+        // Giữ mốc thời gian thật bên cạnh bản ghi để sắp xếp cho đúng.
+        // Trước đây danh sách được sắp theo chuỗi đã định dạng ("2 giờ trước", "14/06/2026"),
+        // so sánh chuỗi như vậy cho ra thứ tự vô nghĩa dù tiêu đề ghi "mới nhất trước".
+        var activities = new List<(DateTimeOffset OccurredAt, AdminActivityResponse Item)>();
 
         var recentBookings = await dbContext.Bookings
             .AsNoTracking()
             .Include(b => b.Customer)
             .Include(b => b.GrapherProfile).ThenInclude(gp => gp.User)
             .OrderByDescending(b => b.CreatedAt)
-            .Take(5)
+            .Take(12)
             .ToArrayAsync(cancellationToken);
 
         foreach (var b in recentBookings)
         {
-            activities.Add(new AdminActivityResponse(
+            activities.Add((b.CreatedAt, new AdminActivityResponse(
                 $"booking-{b.Id}",
                 "📸",
                 $"{b.Customer.FullName} đặt lịch với {b.GrapherProfile.User.FullName}",
-                FormatTimeAgo(b.CreatedAt)
-            ));
+                FormatTimeAgo(b.CreatedAt))));
         }
 
         var recentUsers = await dbContext.Users
             .AsNoTracking()
             .Where(u => u.Role == UserRole.Customer)
             .OrderByDescending(u => u.CreatedAt)
-            .Take(3)
+            .Take(6)
             .ToArrayAsync(cancellationToken);
 
         foreach (var u in recentUsers)
         {
-            activities.Add(new AdminActivityResponse(
+            activities.Add((u.CreatedAt, new AdminActivityResponse(
                 $"user-{u.Id}",
                 "👤",
                 $"{u.FullName} đăng ký tài khoản mới",
-                FormatTimeAgo(u.CreatedAt)
-            ));
+                FormatTimeAgo(u.CreatedAt))));
         }
 
         var recentKyc = await dbContext.GrapherProfiles
@@ -315,22 +446,23 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
             .Include(p => p.User)
             .Where(p => p.KycStatus == KycStatus.Pending)
             .OrderByDescending(p => p.UpdatedAt)
-            .Take(2)
+            .Take(4)
             .ToArrayAsync(cancellationToken);
 
         foreach (var p in recentKyc)
         {
-            activities.Add(new AdminActivityResponse(
+            var occurredAt = p.UpdatedAt ?? p.CreatedAt;
+            activities.Add((occurredAt, new AdminActivityResponse(
                 $"kyc-{p.Id}",
                 "🆔",
                 $"{p.User.FullName} gửi yêu cầu xác minh KYC",
-                FormatTimeAgo(p.UpdatedAt ?? p.CreatedAt)
-            ));
+                FormatTimeAgo(occurredAt))));
         }
 
         return activities
-            .OrderByDescending(a => a.Time)
-            .Take(10)
+            .OrderByDescending(x => x.OccurredAt)
+            .Take(14)
+            .Select(x => x.Item)
             .ToArray();
     }
 
@@ -454,7 +586,10 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
                 ZaloPayEnabled: false,
                 EmailNotifyNewBooking: true,
                 EmailNotifyDispute: true,
-                MaintenanceMode: false);
+                MaintenanceMode: false,
+                QuarterlyRevenueTarget: 50_000_000m,
+                VerifiedGrapherTarget: 50,
+                CompletionRateTarget: 90m);
         }
 
         return ToSettingsResponse(settings);
@@ -482,6 +617,9 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
         settings.EmailNotifyNewBooking = request.EmailNotifyNewBooking;
         settings.EmailNotifyDispute = request.EmailNotifyDispute;
         settings.MaintenanceMode = request.MaintenanceMode;
+        settings.QuarterlyRevenueTarget = request.QuarterlyRevenueTarget;
+        settings.VerifiedGrapherTarget = request.VerifiedGrapherTarget;
+        settings.CompletionRateTarget = request.CompletionRateTarget;
         settings.UpdatedAt = DateTimeOffset.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -499,6 +637,7 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
             .AsNoTracking()
             .Include(u => u.CustomerBookings).ThenInclude(b => b.GrapherProfile).ThenInclude(gp => gp.User)
             .Include(u => u.CustomerBookings).ThenInclude(b => b.ServicePackage)
+            .Include(u => u.CustomerBookings).ThenInclude(b => b.PaymentTransaction)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
             ?? throw new InvalidOperationException("User not found.");
 
@@ -513,7 +652,13 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
                 b.ScheduledAt.ToString("dd/MM/yyyy HH:mm"),
                 b.Location,
                 b.TotalAmount,
-                b.Status.ToString()
+                b.Status.ToString(),
+                // Đang xem chi tiết chính người này nên khách hàng của đơn cũng là họ.
+                user.FullName,
+                b.PaymentTransaction?.Id,
+                b.PaymentTransaction?.Provider.ToString(),
+                b.PaymentTransaction?.Status.ToString(),
+                b.CreatedAt
             )).ToArray();
 
         return new AdminUserDetailResponse(
@@ -587,6 +732,15 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
             .FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken)
             ?? throw new InvalidOperationException("Booking not found.");
 
+        return ToBookingDetailResponse(booking);
+    }
+
+    /// <summary>
+    /// Dựng bản chi tiết đơn hàng. Dùng chung cho endpoint xem chi tiết và cho các
+    /// thao tác của admin, để mọi nơi trả về cùng một hình dạng dữ liệu.
+    /// </summary>
+    private static AdminBookingDetailResponse ToBookingDetailResponse(Domain.Entities.Booking booking)
+    {
         var payment = booking.PaymentTransaction;
         PaymentTransactionResponse? paymentResponse = null;
         if (payment != null)
@@ -627,7 +781,8 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
 
     private static SystemSettingsResponse ToSettingsResponse(Domain.Entities.SystemSettings s) =>
         new(s.PlatformFeePercent, s.MinWithdrawalAmount, s.MomoEnabled, s.VnPayEnabled,
-            s.ZaloPayEnabled, s.EmailNotifyNewBooking, s.EmailNotifyDispute, s.MaintenanceMode);
+            s.ZaloPayEnabled, s.EmailNotifyNewBooking, s.EmailNotifyDispute, s.MaintenanceMode,
+            s.QuarterlyRevenueTarget, s.VerifiedGrapherTarget, s.CompletionRateTarget);
 
     private static string FormatTimeAgo(DateTimeOffset time)
     {
