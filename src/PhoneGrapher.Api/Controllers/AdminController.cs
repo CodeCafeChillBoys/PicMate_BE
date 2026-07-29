@@ -91,13 +91,71 @@ public sealed class AdminController(
 
     // ── Bookings ─────────────────────────────────────────────────────────────
 
+    /// <summary>Admin đóng đơn thay thợ khi thợ chụp xong nhưng quên bấm hoàn thành.</summary>
+    [HttpPost("bookings/{id:guid}/complete")]
+    public async Task<ActionResult<AdminBookingDetailResponse>> ForceCompleteBooking(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await adminService.ForceCompleteBookingAsync(id, User.GetUserId(), cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Error = ex.Message });
+        }
+    }
+
+    /// <summary>Đánh dấu đơn đã hoàn tiền. Không tự chuyển tiền, chỉ ghi nhận trạng thái.</summary>
+    [HttpPost("bookings/{id:guid}/refund")]
+    public async Task<ActionResult<AdminBookingDetailResponse>> RefundBooking(
+        Guid id,
+        RefundBookingRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await adminService.RefundBookingAsync(id, User.GetUserId(), request, cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Error = ex.Message });
+        }
+    }
+
+    /// <summary>Giờ Việt Nam: người dùng chọn ngày theo lịch của họ, không phải theo UTC.</summary>
+    private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+
     [HttpGet("bookings")]
     public async Task<ActionResult<IReadOnlyList<AdminBookingResponse>>> GetAllBookings(
         [FromQuery] string? status,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         CancellationToken cancellationToken)
     {
-        return Ok(await adminService.GetAllBookingsAsync(status, cancellationToken));
+        if (from.HasValue && to.HasValue && from.Value > to.Value)
+        {
+            return BadRequest(new { Error = "Ngày bắt đầu phải trước ngày kết thúc." });
+        }
+
+        var fromUtc = from.HasValue ? ToVietnamStartOfDayUtc(from.Value) : (DateTimeOffset?)null;
+        // Đẩy sang đầu ngày kế tiếp để đơn tạo trong chính ngày "đến" vẫn được tính.
+        var toUtc = to.HasValue ? ToVietnamStartOfDayUtc(to.Value.AddDays(1)) : (DateTimeOffset?)null;
+
+        return Ok(await adminService.GetAllBookingsAsync(status, fromUtc, toUtc, cancellationToken));
     }
+
+    private static DateTimeOffset ToVietnamStartOfDayUtc(DateOnly date)
+        => new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), VietnamOffset).ToUniversalTime();
 
     // ── Activities ───────────────────────────────────────────────────────────
 

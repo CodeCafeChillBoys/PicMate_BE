@@ -68,7 +68,16 @@ public interface IAdminService
     Task<IReadOnlyList<AdminPendingGrapherResponse>> GetPendingGraphersAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminActiveGrapherResponse>> GetActiveGraphersAsync(CancellationToken cancellationToken = default);
     Task<AdminActiveGrapherResponse> ToggleGrapherStatusAsync(Guid grapherProfileId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<AdminBookingResponse>> GetAllBookingsAsync(string? status, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AdminBookingResponse>> GetAllBookingsAsync(string? status, DateTimeOffset? fromUtc, DateTimeOffset? toUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Admin đóng đơn thay thợ. Vẫn giữ nguyên luật không đóng đơn chưa thu được tiền.</summary>
+    Task<AdminBookingDetailResponse> ForceCompleteBookingAsync(Guid bookingId, Guid adminUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Đánh dấu đơn đã được hoàn tiền. Chỉ ghi nhận trong hệ thống;
+    /// việc chuyển tiền lại cho khách làm thủ công ngoài ứng dụng.
+    /// </summary>
+    Task<AdminBookingDetailResponse> RefundBookingAsync(Guid bookingId, Guid adminUserId, RefundBookingRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminActivityResponse>> GetRecentActivitiesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminDisputeResponse>> GetDisputesAsync(string? status, CancellationToken cancellationToken = default);
     Task<AdminDisputeResponse> ResolveDisputeAsync(Guid disputeId, ResolveDisputeRequest request, CancellationToken cancellationToken = default);

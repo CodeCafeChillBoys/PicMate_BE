@@ -230,7 +230,15 @@ public sealed record AdminBookingResponse(
     string Date,
     string Location,
     decimal Total,
-    string Status);
+    string Status,
+    string CustomerName,
+    /// <summary>Null khi đơn chưa có giao dịch thanh toán nào.</summary>
+    Guid? PaymentId,
+    string? PaymentProvider,
+    string? PaymentStatus);
+
+/// <summary>Yêu cầu admin đánh dấu một đơn đã được hoàn tiền.</summary>
+public sealed record RefundBookingRequest(string? Note);
 
 public sealed record AdminActivityResponse(
     string Id,
