@@ -77,7 +77,7 @@ public sealed record ServiceRequest(
     decimal Price,
     int DurationMinutes);
 
-public sealed record ReviewRequest(int Rating, string Comment);
+public sealed record ReviewRequest(int Rating, string Comment, string? ImageUrls = null);
 
 public sealed record NotificationResponse(
     Guid Id,
@@ -93,7 +93,8 @@ public sealed record ReviewResponse(
     Guid BookingId,
     int Rating,
     string Comment,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? ImageUrls = null);
 
 /// <summary>Review đã chọn lọc để hiển thị ở mục "Khách hàng nói gì?" trên trang chủ.</summary>
 /// <param name="Role">Tên gói dịch vụ khách đã đặt, hiển thị dưới tên khách.</param>
@@ -103,7 +104,8 @@ public sealed record TestimonialResponse(
     string Text,
     string Name,
     string Role,
-    string? Avatar);
+    string? Avatar,
+    string? ImageUrls = null);
 
 /// <summary>Review hiển thị trong tab "Đánh giá" của trang thợ.</summary>
 public sealed record GrapherReviewResponse(
@@ -112,7 +114,9 @@ public sealed record GrapherReviewResponse(
     string Text,
     string User,
     DateTimeOffset CreatedAt,
-    string? Avatar);
+    string? Avatar,
+    string? ImageUrls = null,
+    string? PackageName = null);
 
 public sealed record PresetResponse(
     Guid Id,
@@ -122,6 +126,11 @@ public sealed record PresetResponse(
     decimal Rating,
     string Downloads,
     decimal Price);
+
+public sealed record SystemStatsResponse(
+    int TotalGraphers,
+    int TotalPhotos,
+    decimal AverageRating);
 
 public sealed record BootstrapResponse(
     IReadOnlyList<GrapherSummaryResponse> Photographers,
@@ -137,7 +146,8 @@ public sealed record BootstrapResponse(
     IReadOnlyList<object> MockDisputes,
     IReadOnlyList<object> MockActivities,
     IReadOnlyList<object> MockMessages,
-    IReadOnlyList<Guid> FavoritePhotographerIds);
+    IReadOnlyList<Guid> FavoritePhotographerIds,
+    SystemStatsResponse Stats);
 
 public sealed record MonthlyRevenueItem(int Month, string Label, decimal GrossRevenue, decimal PlatformRevenue, int BookingCount);
 

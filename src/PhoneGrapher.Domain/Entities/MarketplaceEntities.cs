@@ -164,6 +164,7 @@ public sealed class Review : Entity
     public Guid GrapherProfileId { get; set; }
     public int Rating { get; set; }
     public string Comment { get; set; } = string.Empty;
+    public string? ImageUrls { get; set; }
 
     public Booking Booking { get; set; } = null!;
     public User Customer { get; set; } = null!;

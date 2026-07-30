@@ -28,7 +28,7 @@ public sealed class BookingsController(IBookingService bookingService) : Control
     }
 
     [HttpPost("{id:guid}/complete")]
-    [Authorize(Roles = "Grapher")]
+    [Authorize]
     public async Task<ActionResult<CompleteBookingResponse>> Complete(Guid id, CancellationToken cancellationToken)
     {
         return Ok(await bookingService.CompleteBookingAsync(id, User.GetUserId(), cancellationToken));
