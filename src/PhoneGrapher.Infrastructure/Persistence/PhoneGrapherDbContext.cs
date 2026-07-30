@@ -158,6 +158,9 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
             entity.Property(x => x.TransactionCode).HasMaxLength(64).IsRequired();
             entity.Property(x => x.ProviderTransactionId).HasMaxLength(128);
             entity.Property(x => x.ProviderResponseCode).HasMaxLength(32);
+            entity.Property(x => x.VerificationNote).HasMaxLength(500);
+            // Phục vụ hàng đợi đối soát và job dọn đơn quá hạn: cả hai đều lọc theo đúng hai cột này.
+            entity.HasIndex(x => new { x.Provider, x.Status });
             entity.Property(x => x.Amount).HasPrecision(18, 2);
             entity.Property(x => x.PlatformFeeAmount).HasPrecision(18, 2);
             entity.Property(x => x.GrapherPayoutAmount).HasPrecision(18, 2);

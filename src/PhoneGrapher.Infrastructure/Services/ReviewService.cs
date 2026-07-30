@@ -38,7 +38,8 @@ public sealed class ReviewService(PhoneGrapherDbContext dbContext) : IReviewServ
             CustomerId = customerId,
             GrapherProfileId = booking.GrapherProfileId,
             Rating = request.Rating,
-            Comment = request.Comment.Trim()
+            Comment = request.Comment.Trim(),
+            ImageUrls = request.ImageUrls
         };
 
         dbContext.Reviews.Add(review);
@@ -49,6 +50,48 @@ public sealed class ReviewService(PhoneGrapherDbContext dbContext) : IReviewServ
         booking.GrapherProfile.UpdatedAt = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new ReviewResponse(review.Id, review.BookingId, review.Rating, review.Comment, review.CreatedAt);
+        return new ReviewResponse(review.Id, review.BookingId, review.Rating, review.Comment, review.CreatedAt, review.ImageUrls);
+    }
+
+    public async Task<IReadOnlyList<TestimonialResponse>> GetFeaturedAsync(
+        int take = 6,
+        CancellationToken cancellationToken = default)
+    {
+        // Trang chủ là mặt tiền: chỉ lấy review từ 4 sao và có viết nội dung.
+        return await dbContext.Reviews
+            .AsNoTracking()
+            .Where(x => x.Rating >= 4 && x.Comment != null && x.Comment.Trim() != string.Empty)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(take)
+            .Select(x => new TestimonialResponse(
+                x.Id,
+                x.Rating,
+                x.Comment,
+                x.Customer.FullName,
+                x.Booking.ServicePackage.Name,
+                x.Customer.AvatarUrl,
+                x.ImageUrls))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<GrapherReviewResponse>> GetForGrapherAsync(
+        Guid grapherProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        // Trang thợ hiển thị đầy đủ, kể cả điểm thấp: khách cần thấy bức tranh thật.
+        return await dbContext.Reviews
+            .AsNoTracking()
+            .Where(x => x.GrapherProfileId == grapherProfileId)
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new GrapherReviewResponse(
+                x.Id,
+                x.Rating,
+                x.Comment,
+                x.Customer.FullName,
+                x.CreatedAt,
+                x.Customer.AvatarUrl,
+                x.ImageUrls,
+                x.Booking.ServicePackage.Name))
+            .ToArrayAsync(cancellationToken);
     }
 }

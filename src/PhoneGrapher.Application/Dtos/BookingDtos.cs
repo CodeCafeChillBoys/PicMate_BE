@@ -81,6 +81,43 @@ public sealed record GrapherBookingResponse(
     decimal GrapherPayoutAmount,
     DateTimeOffset CreatedAt);
 
+public sealed record VietQrPaymentResponse(
+    Guid BookingId,
+    string QrPayload,
+    string BankBin,
+    string BankName,
+    string AccountNumber,
+    string AccountName,
+    decimal Amount,
+    string Memo,
+    DateTimeOffset? ExpiresAt,
+    string PaymentStatus,
+    string BookingStatus,
+    string? VerificationNote);
+
+public sealed record PaymentStatusResponse(
+    Guid BookingId,
+    string PaymentStatus,
+    string BookingStatus,
+    string? VerificationNote);
+
+public sealed record PendingPaymentResponse(
+    Guid PaymentId,
+    Guid BookingId,
+    string TransactionCode,
+    decimal Amount,
+    string CustomerName,
+    string CustomerEmail,
+    string GrapherName,
+    string ServiceName,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? CustomerClaimedAt,
+    DateTimeOffset? ExpiresAt,
+    string PaymentStatus,
+    string BookingStatus);
+
+public sealed record VerifyPaymentRequest(bool Approved, string? Note);
+
 public sealed record CustomerBookingResponse(
     Guid Id,
     Guid GrapherUserId,

@@ -45,6 +45,14 @@ public interface IGrapherService
 public interface IReviewService
 {
     Task<ReviewResponse> CreateReviewAsync(Guid customerId, Guid bookingId, ReviewRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Review chọn lọc cho trang chủ: từ 4 sao trở lên, có nội dung, mới nhất trước.
+    /// </summary>
+    Task<IReadOnlyList<TestimonialResponse>> GetFeaturedAsync(int take = 6, CancellationToken cancellationToken = default);
+
+    /// <summary>Toàn bộ review của một thợ, mới nhất trước.</summary>
+    Task<IReadOnlyList<GrapherReviewResponse>> GetForGrapherAsync(Guid grapherProfileId, CancellationToken cancellationToken = default);
 }
 
 public interface IBootstrapService
@@ -60,7 +68,16 @@ public interface IAdminService
     Task<IReadOnlyList<AdminPendingGrapherResponse>> GetPendingGraphersAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminActiveGrapherResponse>> GetActiveGraphersAsync(CancellationToken cancellationToken = default);
     Task<AdminActiveGrapherResponse> ToggleGrapherStatusAsync(Guid grapherProfileId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<AdminBookingResponse>> GetAllBookingsAsync(string? status, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AdminBookingResponse>> GetAllBookingsAsync(string? status, DateTimeOffset? fromUtc, DateTimeOffset? toUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Admin đóng đơn thay thợ. Vẫn giữ nguyên luật không đóng đơn chưa thu được tiền.</summary>
+    Task<AdminBookingDetailResponse> ForceCompleteBookingAsync(Guid bookingId, Guid adminUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Đánh dấu đơn đã được hoàn tiền. Chỉ ghi nhận trong hệ thống;
+    /// việc chuyển tiền lại cho khách làm thủ công ngoài ứng dụng.
+    /// </summary>
+    Task<AdminBookingDetailResponse> RefundBookingAsync(Guid bookingId, Guid adminUserId, RefundBookingRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminActivityResponse>> GetRecentActivitiesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminDisputeResponse>> GetDisputesAsync(string? status, CancellationToken cancellationToken = default);
     Task<AdminDisputeResponse> ResolveDisputeAsync(Guid disputeId, ResolveDisputeRequest request, CancellationToken cancellationToken = default);
@@ -87,6 +104,35 @@ public interface IVnPayService
 {
     string CreatePaymentUrl(PaymentTransaction payment, string clientIpAddress);
     bool VerifyCallback(IReadOnlyDictionary<string, string> query);
+}
+
+public interface IAdminAnalyticsService
+{
+    /// <summary>
+    /// Toàn bộ dữ liệu cho dashboard Tổng quan trong một lần gọi.
+    /// </summary>
+    /// <param name="range">today | 7d | 30d | quarter. Giá trị lạ sẽ rơi về 30d.</param>
+    Task<AdminAnalyticsResponse> GetAsync(string? range, CancellationToken cancellationToken = default);
+}
+
+public interface IVietQrService
+{
+    /// <summary>
+    /// Sinh chuỗi EMVCo cho mã VietQR động. Hàm thuần: không I/O, không chạm DB.
+    /// </summary>
+    /// <param name="amount">Số tiền VNĐ; được làm tròn về số nguyên.</param>
+    /// <param name="memo">Nội dung chuyển khoản, chỉ chấp nhận A-Z và 0-9.</param>
+    string BuildPayload(decimal amount, string memo);
+}
+
+public interface IPaymentReconciliationService
+{
+    Task<VietQrPaymentResponse> GetVietQrAsync(Guid bookingId, Guid customerId, CancellationToken cancellationToken = default);
+    Task<PaymentStatusResponse> ClaimTransferredAsync(Guid bookingId, Guid customerId, CancellationToken cancellationToken = default);
+    Task<PaymentStatusResponse> GetStatusAsync(Guid bookingId, Guid customerId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PendingPaymentResponse>> GetPendingAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PendingPaymentResponse>> GetRecentlyExpiredAsync(CancellationToken cancellationToken = default);
+    Task<PaymentStatusResponse> VerifyAsync(Guid paymentId, Guid adminUserId, VerifyPaymentRequest request, CancellationToken cancellationToken = default);
 }
 
 public interface IEmailService

@@ -25,6 +25,23 @@ public sealed class VnPayOptions
     public string CurrencyCode { get; init; } = "VND";
 }
 
+public sealed class VietQrOptions
+{
+    public const string SectionName = "VietQr";
+
+    /// <summary>Tắt để ẩn phương thức VietQR khỏi luồng đặt lịch.</summary>
+    public bool Enabled { get; init; } = true;
+    /// <summary>Mã BIN Napas của ngân hàng nhận tiền. Agribank = 970405.</summary>
+    public string BankBin { get; init; } = string.Empty;
+    /// <summary>Tên ngân hàng hiển thị cho khách, ví dụ "Agribank".</summary>
+    public string BankName { get; init; } = string.Empty;
+    public string AccountNumber { get; init; } = string.Empty;
+    /// <summary>Tên chủ tài khoản, viết hoa không dấu, đúng như khi tra cứu trên app ngân hàng.</summary>
+    public string AccountName { get; init; } = string.Empty;
+    /// <summary>Số phút đơn chờ chuyển khoản còn hiệu lực trước khi bị tự huỷ.</summary>
+    public int ExpiryMinutes { get; init; } = 15;
+}
+
 public sealed class GoogleAuthOptions
 {
     public const string SectionName = "GoogleAuth";

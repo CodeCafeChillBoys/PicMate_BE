@@ -144,6 +144,16 @@ public sealed class PaymentTransaction : Entity
     public DateTimeOffset? ReleasedAt { get; set; }
     public string? RawCallbackPayload { get; set; }
 
+    /// <summary>Hạn thanh toán. Chỉ đặt cho VietQR.</summary>
+    public DateTimeOffset? ExpiresAt { get; set; }
+    /// <summary>Thời điểm khách bấm "Tôi đã chuyển khoản". Khác null = miễn nhiễm với job tự huỷ.</summary>
+    public DateTimeOffset? CustomerClaimedAt { get; set; }
+    /// <summary>Admin đã duyệt hoặc từ chối giao dịch này.</summary>
+    public Guid? VerifiedByUserId { get; set; }
+    public DateTimeOffset? VerifiedAt { get; set; }
+    /// <summary>Ghi chú của admin, bắt buộc khi từ chối.</summary>
+    public string? VerificationNote { get; set; }
+
     public Booking Booking { get; set; } = null!;
 }
 
@@ -154,6 +164,7 @@ public sealed class Review : Entity
     public Guid GrapherProfileId { get; set; }
     public int Rating { get; set; }
     public string Comment { get; set; } = string.Empty;
+    public string? ImageUrls { get; set; }
 
     public Booking Booking { get; set; } = null!;
     public User Customer { get; set; } = null!;
@@ -230,6 +241,13 @@ public sealed class SystemSettings : Entity
     public bool EmailNotifyDispute { get; set; } = true;
     /// <summary>Chế độ bảo trì</summary>
     public bool MaintenanceMode { get; set; } = false;
+
+    /// <summary>Chỉ tiêu doanh thu trong quý, đơn vị VNĐ. Dùng cho khối "Mục tiêu quý".</summary>
+    public decimal QuarterlyRevenueTarget { get; set; } = 50_000_000m;
+    /// <summary>Chỉ tiêu số thợ đã duyệt KYC.</summary>
+    public int VerifiedGrapherTarget { get; set; } = 50;
+    /// <summary>Chỉ tiêu tỉ lệ đơn hoàn thành, đơn vị phần trăm.</summary>
+    public decimal CompletionRateTarget { get; set; } = 90m;
 }
 
 public sealed class UserFavoriteGrapher : Entity
