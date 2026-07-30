@@ -231,9 +231,9 @@ public sealed class BookingService(
             .FirstOrDefaultAsync(x => x.Id == bookingId, cancellationToken)
             ?? throw new InvalidOperationException("Booking not found.");
 
-        if (booking.GrapherProfile.UserId != actorUserId)
+        if (booking.GrapherProfile.UserId != actorUserId && booking.CustomerId != actorUserId)
         {
-            throw new UnauthorizedAccessException("Only the assigned grapher can complete this booking.");
+            throw new UnauthorizedAccessException("Only the customer or the assigned grapher can complete this booking.");
         }
 
         if (booking.Status is not (BookingStatus.Confirmed or BookingStatus.InProgress or BookingStatus.PendingConfirmation))

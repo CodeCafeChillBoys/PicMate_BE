@@ -38,7 +38,8 @@ public sealed class ReviewService(PhoneGrapherDbContext dbContext) : IReviewServ
             CustomerId = customerId,
             GrapherProfileId = booking.GrapherProfileId,
             Rating = request.Rating,
-            Comment = request.Comment.Trim()
+            Comment = request.Comment.Trim(),
+            ImageUrls = request.ImageUrls
         };
 
         dbContext.Reviews.Add(review);
@@ -49,7 +50,7 @@ public sealed class ReviewService(PhoneGrapherDbContext dbContext) : IReviewServ
         booking.GrapherProfile.UpdatedAt = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new ReviewResponse(review.Id, review.BookingId, review.Rating, review.Comment, review.CreatedAt);
+        return new ReviewResponse(review.Id, review.BookingId, review.Rating, review.Comment, review.CreatedAt, review.ImageUrls);
     }
 
     public async Task<IReadOnlyList<TestimonialResponse>> GetFeaturedAsync(
@@ -68,7 +69,8 @@ public sealed class ReviewService(PhoneGrapherDbContext dbContext) : IReviewServ
                 x.Comment,
                 x.Customer.FullName,
                 x.Booking.ServicePackage.Name,
-                x.Customer.AvatarUrl))
+                x.Customer.AvatarUrl,
+                x.ImageUrls))
             .ToArrayAsync(cancellationToken);
     }
 
@@ -87,7 +89,9 @@ public sealed class ReviewService(PhoneGrapherDbContext dbContext) : IReviewServ
                 x.Comment,
                 x.Customer.FullName,
                 x.CreatedAt,
-                x.Customer.AvatarUrl))
+                x.Customer.AvatarUrl,
+                x.ImageUrls,
+                x.Booking.ServicePackage.Name))
             .ToArrayAsync(cancellationToken);
     }
 }
