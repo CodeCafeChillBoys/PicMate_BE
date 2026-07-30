@@ -9,7 +9,8 @@ namespace PhoneGrapher.Api.Controllers;
 [Route("api/payments")]
 public sealed class PaymentsController(
     IBookingService bookingService,
-    IPaymentReconciliationService reconciliationService) : ControllerBase
+    IPaymentReconciliationService reconciliationService,
+    IConfiguration configuration) : ControllerBase
 {
     [HttpGet("vnpay-return")]
     [AllowAnonymous]

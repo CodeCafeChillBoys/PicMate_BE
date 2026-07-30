@@ -68,6 +68,6 @@ public sealed class VnPayService(IOptions<VnPayOptions> options) : IVnPayService
         var keyBytes = Encoding.UTF8.GetBytes(key);
         var dataBytes = Encoding.UTF8.GetBytes(data);
         using var hmac = new HMACSHA512(keyBytes);
-        return Convert.ToHexString(hmac.ComputeHash(dataBytes)).ToLowerInvariant();
+        return Convert.ToHexString(hmac.ComputeHash(dataBytes));
     }
 }
