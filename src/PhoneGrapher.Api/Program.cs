@@ -50,13 +50,43 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowFrontend", policy => {
-        policy.WithOrigins(
-                "http://localhost:5173", 
-                "https://localhost:5173", 
-                "https://pic-mate-fe.vercel.app",
-                "https://pic-mate-beryl.vercel.app"
-              )
-              .SetIsOriginAllowed(origin => origin.EndsWith(".vercel.app"))
+        var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+        var allowedOrigins = new List<string>
+        {
+            "http://localhost:5173", 
+            "https://localhost:5173", 
+            "http://localhost:8081",
+            "https://localhost:8081",
+            "https://pic-mate-fe.vercel.app",
+            "https://pic-mate-beryl.vercel.app"
+        };
+
+        var frontendUrl = builder.Configuration["FrontendUrl"];
+        if (!string.IsNullOrWhiteSpace(frontendUrl))
+        {
+            var cleanUrl = frontendUrl.Trim().TrimEnd('/');
+            if (!allowedOrigins.Contains(cleanUrl))
+            {
+                allowedOrigins.Add(cleanUrl);
+            }
+        }
+
+        foreach (var origin in configuredOrigins)
+        {
+            var cleanUrl = origin?.Trim()?.TrimEnd('/');
+            if (!string.IsNullOrWhiteSpace(cleanUrl) && !allowedOrigins.Contains(cleanUrl))
+            {
+                allowedOrigins.Add(cleanUrl);
+            }
+        }
+
+        policy.WithOrigins(allowedOrigins.ToArray())
+              .SetIsOriginAllowed(origin => 
+                  origin.EndsWith(".vercel.app") || 
+                  origin.StartsWith("http://localhost:") || 
+                  origin.StartsWith("https://localhost:") ||
+                  origin.StartsWith("http://127.0.0.1:") ||
+                  origin.StartsWith("https://127.0.0.1:"))
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
