@@ -31,12 +31,12 @@ public sealed class UploadsController : ControllerBase
                 return BadRequest(new { Error = "No file uploaded." });
             }
 
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".pdf" };
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
             if (!allowedExtensions.Contains(extension))
             {
-                return BadRequest(new { Error = "Invalid file type. Only JPG, PNG, and WEBP are allowed." });
+                return BadRequest(new { Error = "Invalid file type. Only JPG, PNG, WEBP, and PDF are allowed." });
             }
 
             if (file.Length > 10 * 1024 * 1024)

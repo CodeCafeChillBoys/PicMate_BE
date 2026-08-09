@@ -32,7 +32,8 @@ public interface IGrapherService
     Task<GrapherDetailResponse> GetMyProfileAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<GrapherSummaryResponse> UpsertProfileAsync(Guid userId, UpsertGrapherProfileRequest request, CancellationToken cancellationToken = default);
     Task SetOnlineStatusAsync(Guid userId, bool isOnline, CancellationToken cancellationToken = default);
-    Task ApproveKycAsync(Guid grapherProfileId, bool approved, CancellationToken cancellationToken = default);
+    Task ApproveKycAsync(Guid grapherProfileId, bool approved, string? rejectReason = null, CancellationToken cancellationToken = default);
+    Task SubmitApplicationAsync(Guid userId, SubmitApplicationRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ServicePackageResponse>> SeedDefaultPackagesAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ServicePackageResponse>> GetMyServicesAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<ServicePackageResponse> AddServiceAsync(Guid userId, ServiceRequest request, CancellationToken cancellationToken = default);
@@ -66,6 +67,7 @@ public interface IAdminService
     Task<IReadOnlyList<AdminUserResponse>> GetAllUsersAsync(string? search, string? role, CancellationToken cancellationToken = default);
     Task<AdminUserResponse> ToggleUserStatusAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminPendingGrapherResponse>> GetPendingGraphersAsync(CancellationToken cancellationToken = default);
+    Task<AdminPendingGrapherDetailResponse> GetPendingGrapherDetailAsync(Guid grapherProfileId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminActiveGrapherResponse>> GetActiveGraphersAsync(CancellationToken cancellationToken = default);
     Task<AdminActiveGrapherResponse> ToggleGrapherStatusAsync(Guid grapherProfileId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminBookingResponse>> GetAllBookingsAsync(string? status, DateTimeOffset? fromUtc, DateTimeOffset? toUtc, CancellationToken cancellationToken = default);
@@ -81,6 +83,8 @@ public interface IAdminService
     Task<IReadOnlyList<AdminActivityResponse>> GetRecentActivitiesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminDisputeResponse>> GetDisputesAsync(string? status, CancellationToken cancellationToken = default);
     Task<AdminDisputeResponse> ResolveDisputeAsync(Guid disputeId, ResolveDisputeRequest request, CancellationToken cancellationToken = default);
+    Task<AdminDisputeAiAnalysisResponse> AnalyzeDisputeWithAiAsync(Guid disputeId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ChatMessageResponse>> GetDisputeChatLogAsync(Guid disputeId, CancellationToken cancellationToken = default);
     Task<SystemSettingsResponse> GetSystemSettingsAsync(CancellationToken cancellationToken = default);
     Task<SystemSettingsResponse> UpdateSystemSettingsAsync(UpdateSystemSettingsRequest request, CancellationToken cancellationToken = default);
     Task<AdminUserDetailResponse> GetUserDetailAsync(Guid userId, CancellationToken cancellationToken = default);

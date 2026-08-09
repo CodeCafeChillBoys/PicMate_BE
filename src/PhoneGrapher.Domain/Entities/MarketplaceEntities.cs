@@ -37,14 +37,22 @@ public sealed class GrapherProfile : Entity
     public string Bio { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
     public string? District { get; set; }
-    public string? CccdNumber { get; set; }
-    public string? CccdFrontImageUrl { get; set; }
-    public string? CccdBackImageUrl { get; set; }
+    public string? CvFileUrl { get; set; }
+    public int? ExperienceYears { get; set; }
+    public string? Specialization { get; set; }
+    public string? ExternalLinks { get; set; }
+    public string? KycRejectReason { get; set; }
     public KycStatus KycStatus { get; set; } = KycStatus.NotSubmitted;
     public bool IsVerified { get; set; }
     public bool IsOnline { get; set; }
     public decimal AverageRating { get; set; }
     public int ReviewCount { get; set; }
+    
+    // Wallet & Bank Info
+    public decimal Balance { get; set; }
+    public string? BankName { get; set; }
+    public string? BankAccountNumber { get; set; }
+    public string? BankAccountName { get; set; }
 
     public User User { get; set; } = null!;
     public ICollection<GrapherPortfolioItem> PortfolioItems { get; set; } = new List<GrapherPortfolioItem>();
@@ -52,7 +60,36 @@ public sealed class GrapherProfile : Entity
     public ICollection<GrapherStyleTag> StyleTags { get; set; } = new List<GrapherStyleTag>();
     public ICollection<GrapherActivityArea> ActivityAreas { get; set; } = new List<GrapherActivityArea>();
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+    public ICollection<PayoutRequest> PayoutRequests { get; set; } = new List<PayoutRequest>();
     public ICollection<UserFavoriteGrapher> FavoritedByUsers { get; set; } = new List<UserFavoriteGrapher>();
+}
+
+public enum PayoutStatus
+{
+    Pending,
+    Paid,
+    Rejected
+}
+
+public sealed class PayoutRequest : Entity
+{
+    public Guid GrapherProfileId { get; set; }
+    public decimal Amount { get; set; }
+    public PayoutStatus Status { get; set; } = PayoutStatus.Pending;
+    
+    public string? BankName { get; set; }
+    public string? BankAccountNumber { get; set; }
+    public string? BankAccountName { get; set; }
+    
+    public string? ProofImageUrl { get; set; }
+    public string? RejectReason { get; set; }
+    
+    public DateTimeOffset? ResolvedAt { get; set; }
+    
+    public string? AdminNote { get; set; }
+    public DateTimeOffset? ProcessedAt { get; set; }
+
+    public GrapherProfile GrapherProfile { get; set; } = null!;
 }
 
 public sealed class StyleTag : Entity
@@ -205,6 +242,7 @@ public sealed class Dispute : Entity
     public string? AdminNote { get; set; }
     public string? Resolution { get; set; }    // 'refund' | 'warning' | 'resolved'
     public DateTimeOffset? ResolvedAt { get; set; }
+    public string? EvidenceImageUrls { get; set; }
 
     public Booking Booking { get; set; } = null!;
     public User Reporter { get; set; } = null!;

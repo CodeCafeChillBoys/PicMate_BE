@@ -1,4 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using PhoneGrapher.Application.Abstractions;
 using PhoneGrapher.Application.Dtos;
 using PhoneGrapher.Domain.Enums;
@@ -6,8 +10,20 @@ using PhoneGrapher.Infrastructure.Persistence;
 
 namespace PhoneGrapher.Infrastructure.Services;
 
-public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminService
+public sealed class AdminService : IAdminService
 {
+    private readonly PhoneGrapherDbContext dbContext;
+    private readonly IConfiguration configuration;
+
+    public AdminService(PhoneGrapherDbContext dbContext, IConfiguration configuration)
+    {
+        this.dbContext = dbContext;
+        this.configuration = configuration;
+    }
+
+    public AdminService(PhoneGrapherDbContext dbContext) : this(dbContext, null!)
+    {
+    }
     // ── Revenue / Stats ──────────────────────────────────────────────────────
 
     public async Task<RevenueSummaryResponse> GetRevenueSummaryAsync(CancellationToken cancellationToken = default)
@@ -171,6 +187,45 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
             p.Location,
             p.CreatedAt.ToString("yyyy-MM-dd")
         )).ToArray();
+    }
+
+    public async Task<AdminPendingGrapherDetailResponse> GetPendingGrapherDetailAsync(
+        Guid grapherProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = await dbContext.GrapherProfiles
+            .AsNoTracking()
+            .Include(p => p.User)
+            .Include(p => p.StyleTags).ThenInclude(st => st.StyleTag)
+            .Include(p => p.PortfolioItems)
+            .FirstOrDefaultAsync(p => p.Id == grapherProfileId, cancellationToken)
+            ?? throw new InvalidOperationException("Grapher profile not found.");
+
+        string[] externalLinks = Array.Empty<string>();
+        if (!string.IsNullOrWhiteSpace(profile.ExternalLinks))
+        {
+            try { externalLinks = System.Text.Json.JsonSerializer.Deserialize<string[]>(profile.ExternalLinks) ?? Array.Empty<string>(); }
+            catch { /* ignore parse errors */ }
+        }
+
+        return new AdminPendingGrapherDetailResponse(
+            profile.Id,
+            profile.UserId,
+            profile.User.FullName,
+            profile.User.Email,
+            profile.User.PhoneNumber,
+            profile.User.AvatarUrl,
+            profile.Bio,
+            profile.Location,
+            profile.ExperienceYears,
+            profile.Specialization,
+            profile.CvFileUrl,
+            externalLinks,
+            profile.StyleTags.Select(st => st.StyleTag.Name).ToArray(),
+            profile.PortfolioItems.OrderBy(pi => pi.DisplayOrder).Select(pi => pi.ImageUrl).ToArray(),
+            profile.CreatedAt.ToString("yyyy-MM-dd"),
+            profile.KycRejectReason
+        );
     }
 
     // ── Graphers – Active (Admin view) ───────────────────────────────────────
@@ -491,22 +546,31 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
             .Take(50)
             .ToArrayAsync(cancellationToken);
 
-        return disputes.Select(d => new AdminDisputeResponse(
-            d.Id,
-            d.BookingId,
-            d.Reporter.FullName,
-            d.Reporter.AvatarUrl,
-            d.Respondent.FullName,
-            d.Respondent.AvatarUrl,
-            d.Reason,
-            d.Status.ToString(),
-            d.Priority.ToString(),
-            d.AdminNote,
-            d.Resolution,
-            d.Booking.TotalAmount,
-            d.CreatedAt.ToString("dd/MM/yyyy"),
-            d.ResolvedAt?.ToString("dd/MM/yyyy")
-        )).ToArray();
+        return disputes.Select(d => {
+            string[] evidenceUrls = Array.Empty<string>();
+            if (!string.IsNullOrWhiteSpace(d.EvidenceImageUrls))
+            {
+                try { evidenceUrls = System.Text.Json.JsonSerializer.Deserialize<string[]>(d.EvidenceImageUrls) ?? Array.Empty<string>(); }
+                catch { }
+            }
+            return new AdminDisputeResponse(
+                d.Id,
+                d.BookingId,
+                d.Reporter.FullName,
+                d.Reporter.AvatarUrl,
+                d.Respondent.FullName,
+                d.Respondent.AvatarUrl,
+                d.Reason,
+                d.Status.ToString(),
+                d.Priority.ToString(),
+                d.AdminNote,
+                d.Resolution,
+                d.Booking.TotalAmount,
+                d.CreatedAt.ToString("dd/MM/yyyy"),
+                d.ResolvedAt?.ToString("dd/MM/yyyy"),
+                evidenceUrls
+            );
+        }).ToArray();
     }
 
     public async Task<AdminDisputeResponse> ResolveDisputeAsync(
@@ -517,7 +581,7 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
         var dispute = await dbContext.Disputes
             .Include(d => d.Reporter)
             .Include(d => d.Respondent)
-            .Include(d => d.Booking)
+            .Include(d => d.Booking).ThenInclude(b => b.GrapherProfile)
             .FirstOrDefaultAsync(d => d.Id == disputeId, cancellationToken)
             ?? throw new InvalidOperationException("Dispute not found.");
 
@@ -530,24 +594,142 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
         dispute.ResolvedAt = DateTimeOffset.UtcNow;
         dispute.UpdatedAt = DateTimeOffset.UtcNow;
 
-        // Nếu action là hoàn tiền → cập nhật payment + booking
-        if (request.Action == "refund")
+        var booking = dispute.Booking;
+        var payment = await dbContext.PaymentTransactions
+            .FirstOrDefaultAsync(p => p.BookingId == booking.Id, cancellationToken);
+
+        if (payment is not null)
         {
-            var payment = await dbContext.PaymentTransactions
-                .FirstOrDefaultAsync(p => p.BookingId == dispute.BookingId, cancellationToken);
-            if (payment is not null && payment.Status == PaymentStatus.Succeeded)
+            var isCod = payment.Provider == PaymentProvider.Cod;
+
+            if (request.Action == "refund")
             {
-                payment.Status = PaymentStatus.Refunded;
-                payment.EscrowStatus = EscrowStatus.Refunded;
+                // Hoàn tiền 100% cho khách
+                if (booking.Status == BookingStatus.Completed)
+                {
+                    // Nếu đơn đã xong (thợ đã nhận tiền), khấu trừ lại tiền từ ví thợ
+                    if (!isCod)
+                    {
+                        booking.GrapherProfile.Balance -= payment.GrapherPayoutAmount;
+                        payment.Status = PaymentStatus.Refunded;
+                        payment.EscrowStatus = EscrowStatus.Refunded;
+                    }
+                    else
+                    {
+                        booking.GrapherProfile.Balance += payment.PlatformFeeAmount; // trả lại phí platform đã trừ
+                        payment.Status = PaymentStatus.Refunded;
+                    }
+                }
+                else
+                {
+                    // Đơn chưa xong, hủy và hoàn tiền ký quỹ
+                    if (!isCod)
+                    {
+                        payment.Status = PaymentStatus.Refunded;
+                        payment.EscrowStatus = EscrowStatus.Refunded;
+                    }
+                    else
+                    {
+                        payment.Status = PaymentStatus.Failed;
+                    }
+                }
+
+                booking.Status = BookingStatus.Cancelled;
+                booking.CancellationReason = $"Admin hoàn tiền 100% sau tranh chấp: {request.AdminNote}";
+                booking.UpdatedAt = DateTimeOffset.UtcNow;
                 payment.UpdatedAt = DateTimeOffset.UtcNow;
             }
+            else if (request.Action == "resolved")
+            {
+                // Giải ngân 100% cho thợ (Bác bỏ khiếu nại)
+                if (booking.Status != BookingStatus.Completed)
+                {
+                    // Đơn chưa hoàn thành → tiến hành hoàn thành đơn và giải ngân cho thợ
+                    booking.Status = BookingStatus.Completed;
+                    booking.CompletedAt = DateTimeOffset.UtcNow;
+                    booking.UpdatedAt = DateTimeOffset.UtcNow;
 
-            dispute.Booking.Status = BookingStatus.Cancelled;
-            dispute.Booking.CancellationReason = $"Admin hoàn tiền sau tranh chấp: {request.AdminNote}";
-            dispute.Booking.UpdatedAt = DateTimeOffset.UtcNow;
+                    if (isCod)
+                    {
+                        payment.Status = PaymentStatus.Succeeded;
+                        payment.PaidAt = DateTimeOffset.UtcNow;
+                        booking.GrapherProfile.Balance -= payment.PlatformFeeAmount;
+                    }
+                    else
+                    {
+                        payment.Status = PaymentStatus.Succeeded;
+                        payment.EscrowStatus = EscrowStatus.Released;
+                        payment.ReleasedAt = DateTimeOffset.UtcNow;
+                        booking.GrapherProfile.Balance += payment.GrapherPayoutAmount;
+                    }
+                    payment.UpdatedAt = DateTimeOffset.UtcNow;
+                }
+            }
+            else if (request.Action == "split")
+            {
+                // Chia tiền (Kéo thanh trượt)
+                var refundPercent = request.RefundPercent ?? 50;
+                if (refundPercent < 0) refundPercent = 0;
+                if (refundPercent > 100) refundPercent = 100;
+
+                decimal refundRatio = (decimal)refundPercent / 100m;
+                decimal releaseRatio = 1m - refundRatio;
+
+                if (booking.Status == BookingStatus.Completed)
+                {
+                    // Đơn đã xong (thợ đã nhận 100% payout). Khấu trừ phần bồi hoàn cho khách từ ví thợ.
+                    if (!isCod)
+                    {
+                        decimal clawBackAmount = payment.GrapherPayoutAmount * refundRatio;
+                        booking.GrapherProfile.Balance -= clawBackAmount;
+
+                        payment.Status = PaymentStatus.Refunded; // Đánh dấu hoàn một phần
+                        payment.EscrowStatus = EscrowStatus.Refunded;
+                    }
+                    else
+                    {
+                        // COD: hoàn lại phần phí platform tương ứng
+                        decimal platformFeeReturn = payment.PlatformFeeAmount * refundRatio;
+                        booking.GrapherProfile.Balance += platformFeeReturn;
+                        payment.Status = PaymentStatus.Refunded;
+                    }
+                }
+                else
+                {
+                    // Đơn chưa xong. Giải ngân phần releaseRatio cho thợ, phần refundRatio hoàn khách.
+                    if (!isCod)
+                    {
+                        decimal releaseAmount = payment.GrapherPayoutAmount * releaseRatio;
+                        booking.GrapherProfile.Balance += releaseAmount;
+
+                        payment.Status = PaymentStatus.Refunded;
+                        payment.EscrowStatus = EscrowStatus.Released;
+                        payment.ReleasedAt = DateTimeOffset.UtcNow;
+                    }
+                    else
+                    {
+                        // COD: tính phí platform cho phần thợ nhận
+                        decimal actualPlatformFee = payment.PlatformFeeAmount * releaseRatio;
+                        booking.GrapherProfile.Balance -= actualPlatformFee;
+                        payment.Status = PaymentStatus.Succeeded;
+                    }
+                }
+
+                booking.Status = BookingStatus.Cancelled;
+                booking.CancellationReason = $"Admin phân chia ký quỹ (Hoàn khách {refundPercent}%, Giải ngân thợ {100 - refundPercent}%): {request.AdminNote}";
+                booking.UpdatedAt = DateTimeOffset.UtcNow;
+                payment.UpdatedAt = DateTimeOffset.UtcNow;
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        string[] evidenceUrls = Array.Empty<string>();
+        if (!string.IsNullOrWhiteSpace(dispute.EvidenceImageUrls))
+        {
+            try { evidenceUrls = System.Text.Json.JsonSerializer.Deserialize<string[]>(dispute.EvidenceImageUrls) ?? Array.Empty<string>(); }
+            catch { }
+        }
 
         return new AdminDisputeResponse(
             dispute.Id,
@@ -561,9 +743,200 @@ public sealed class AdminService(PhoneGrapherDbContext dbContext) : IAdminServic
             dispute.Priority.ToString(),
             dispute.AdminNote,
             dispute.Resolution,
-            dispute.Booking.TotalAmount,
+            booking.TotalAmount,
             dispute.CreatedAt.ToString("dd/MM/yyyy"),
-            dispute.ResolvedAt?.ToString("dd/MM/yyyy"));
+            dispute.ResolvedAt?.ToString("dd/MM/yyyy"),
+            evidenceUrls);
+    }
+
+    public async Task<IReadOnlyList<ChatMessageResponse>> GetDisputeChatLogAsync(
+        Guid disputeId,
+        CancellationToken cancellationToken = default)
+    {
+        var dispute = await dbContext.Disputes
+            .AsNoTracking()
+            .Include(d => d.Booking).ThenInclude(b => b.GrapherProfile)
+            .FirstOrDefaultAsync(d => d.Id == disputeId, cancellationToken)
+            ?? throw new KeyNotFoundException("Dispute not found.");
+
+        var customerId = dispute.Booking.CustomerId;
+        var grapherUserId = dispute.Booking.GrapherProfile.UserId;
+
+        // Lấy tất cả tin nhắn chat qua lại giữa customer và thợ chụp
+        var messages = await dbContext.Messages
+            .AsNoTracking()
+            .Include(m => m.Sender)
+            .Where(m => (m.SenderId == customerId && m.ReceiverId == grapherUserId) ||
+                        (m.SenderId == grapherUserId && m.ReceiverId == customerId))
+            .OrderBy(m => m.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return messages.Select(m => new ChatMessageResponse(
+            m.Id,
+            m.SenderId,
+            m.Sender.FullName,
+            m.Content,
+            m.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+            m.SenderId == customerId
+        )).ToArray();
+    }
+
+    public async Task<AdminDisputeAiAnalysisResponse> AnalyzeDisputeWithAiAsync(
+        Guid disputeId,
+        CancellationToken cancellationToken = default)
+    {
+        var dispute = await dbContext.Disputes
+            .AsNoTracking()
+            .Include(d => d.Reporter)
+            .Include(d => d.Respondent)
+            .Include(d => d.Booking).ThenInclude(b => b.GrapherProfile)
+            .FirstOrDefaultAsync(d => d.Id == disputeId, cancellationToken)
+            ?? throw new KeyNotFoundException("Dispute not found.");
+
+        var chatLog = await GetDisputeChatLogAsync(disputeId, cancellationToken);
+
+        // Xây dựng Chat Log Context dạng Text gửi lên cho Gemini
+        var chatBuilder = new StringBuilder();
+        chatBuilder.AppendLine("LỊCH SỬ CHAT GIỮA KHÁCH HÀNG VÀ THỢ CHỤP:");
+        foreach (var msg in chatLog)
+        {
+            var roleStr = msg.IsFromCustomer ? "KHÁCH HÀNG" : "THỢ CHỤP";
+            chatBuilder.AppendLine($"[{msg.CreatedAt}] {roleStr} ({msg.SenderName}): {msg.Content}");
+        }
+
+        var apiKey = configuration?["GeminiSettings:ApiKey"] ?? string.Empty;
+        var modelName = configuration?["GeminiSettings:ModelName"] ?? "gemini-2.5-flash";
+
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            return new AdminDisputeAiAnalysisResponse(
+                "Không thể kết nối dịch vụ AI (Thiếu API Key).",
+                "Không khả dụng.",
+                "Admin vui lòng tự đánh giá dựa trên đoạn chat thực tế."
+            );
+        }
+
+        string url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={apiKey}";
+
+        var systemInstruction = @"Bạn là trợ lý AI chuyên viên phân giải tranh chấp cấp cao của sàn giao dịch nhiếp ảnh PicMate.
+Nhiệm vụ của bạn là:
+1. Đọc lý do tranh chấp và toàn bộ lịch sử trò chuyện (Chat Log) giữa Khách Hàng (Customer) và Thợ Chụp (Phone-Grapher).
+2. Phân tích vụ việc một cách khách quan: Ai là người có lỗi? Thợ chụp có đi trễ, không đến, giao ảnh muộn, hay thái độ không tốt? Hay khách hàng đòi hỏi vô lý ngoài thỏa thuận?
+3. Đưa ra 3 phần phản hồi chính xác bằng tiếng Việt và sắp xếp BẮT BUỘC theo cấu trúc bên dưới, sử dụng đúng các nhãn [SUMMARY], [SENTIMENT], và [RECOMMENDATION]:
+
+[SUMMARY]
+(Tóm tắt ngắn gọn diễn biến chính, các sự kiện mấu chốt)
+
+[SENTIMENT]
+(Đánh giá thái độ giao tiếp của mỗi bên (lịch sự/thô lỗ), xem ai vi phạm cam kết hoặc có biểu hiện bất hợp tác)
+
+[RECOMMENDATION]
+(Đề xuất cụ thể Admin nên chọn phương án nào: Hoàn tiền 100% cho khách, Giải ngân 100% cho thợ, hay Chia tỷ lệ ký quỹ Escrow Split - ví dụ hoàn khách 70%, giải ngân thợ 30%. Đưa ra lý do và phần trăm bồi hoàn cụ thể)";
+
+        var userPrompt = $@"Lý do khiếu nại của người báo cáo ({dispute.Reporter.FullName}):
+""{dispute.Reason}""
+
+{chatBuilder}
+
+Hãy phân tích vụ việc trên và trả về kết quả định dạng nhãn theo hướng dẫn.";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    role = "user",
+                    parts = new[]
+                    {
+                        new { text = userPrompt }
+                    }
+                }
+            },
+            systemInstruction = new
+            {
+                parts = new[]
+                {
+                    new { text = systemInstruction }
+                }
+            },
+            generationConfig = new
+            {
+                temperature = 0.2,
+                maxOutputTokens = 1536
+            }
+        };
+
+        try
+        {
+            using var client = new HttpClient();
+            var jsonContent = JsonSerializer.Serialize(requestBody);
+            var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            var response = await client.PostAsync(url, httpContent, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorText = await response.Content.ReadAsStringAsync(cancellationToken);
+                return new AdminDisputeAiAnalysisResponse(
+                    "Lỗi kết nối Gemini API.",
+                    "Không thể kết nối.",
+                    $"Mã lỗi API: {response.StatusCode}. Chi tiết: {errorText}"
+                );
+            }
+
+            var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(responseJson);
+            var replyText = doc.RootElement
+                .GetProperty("candidates")[0]
+                .GetProperty("content")
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString();
+
+            if (string.IsNullOrWhiteSpace(replyText))
+            {
+                throw new InvalidOperationException("Gemini returned empty text.");
+            }
+
+            var summary = ExtractSection(replyText, "[SUMMARY]", "[SENTIMENT]");
+            var chatSentiment = ExtractSection(replyText, "[SENTIMENT]", "[RECOMMENDATION]");
+            var aiRecommendation = ExtractSection(replyText, "[RECOMMENDATION]", null);
+
+            return new AdminDisputeAiAnalysisResponse(
+                summary,
+                chatSentiment,
+                aiRecommendation
+            );
+        }
+        catch (Exception ex)
+        {
+            return new AdminDisputeAiAnalysisResponse(
+                "Lỗi ngoại lệ khi xử lý phân tích AI.",
+                "Không thể xử lý.",
+                $"Chi tiết lỗi: {ex.Message}"
+            );
+        }
+    }
+
+    private static string ExtractSection(string text, string startMarker, string? endMarker)
+    {
+        var startIdx = text.IndexOf(startMarker, StringComparison.OrdinalIgnoreCase);
+        if (startIdx == -1) return "Không tìm thấy thông tin.";
+
+        startIdx += startMarker.Length;
+        
+        if (string.IsNullOrEmpty(endMarker))
+        {
+            return text.Substring(startIdx).Trim();
+        }
+
+        var endIdx = text.IndexOf(endMarker, startIdx, StringComparison.OrdinalIgnoreCase);
+        if (endIdx == -1)
+        {
+            return text.Substring(startIdx).Trim();
+        }
+
+        return text.Substring(startIdx, endIdx - startIdx).Trim();
     }
 
     // ── System Settings ───────────────────────────────────────────────────────

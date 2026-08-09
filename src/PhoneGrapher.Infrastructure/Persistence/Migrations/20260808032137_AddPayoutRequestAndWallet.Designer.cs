@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PhoneGrapher.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using PhoneGrapher.Infrastructure.Persistence;
 namespace PhoneGrapher.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PhoneGrapherDbContext))]
-    partial class PhoneGrapherDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260808032137_AddPayoutRequestAndWallet")]
+    partial class AddPayoutRequestAndWallet
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -108,9 +111,6 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("EvidenceImageUrls")
-                        .HasColumnType("text");
 
                     b.Property<string>("Priority")
                         .IsRequired()
@@ -260,33 +260,30 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CvFileUrl")
+                    b.Property<string>("CccdBackImageUrl")
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("CccdFrontImageUrl")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("CccdNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("District")
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
-
-                    b.Property<int?>("ExperienceYears")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ExternalLinks")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
 
                     b.Property<bool>("IsOnline")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsVerified")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("KycRejectReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("KycStatus")
                         .IsRequired()
@@ -301,10 +298,6 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                     b.Property<int>("ReviewCount")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Specialization")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -312,6 +305,10 @@ namespace PhoneGrapher.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CccdNumber")
+                        .IsUnique()
+                        .HasFilter("\"CccdNumber\" IS NOT NULL");
 
                     b.HasIndex("Location");
 

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using PhoneGrapher.Application.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using PhoneGrapher.Application.Abstractions;
@@ -45,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IDisputeService, DisputeService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBookingService, BookingService>();
+        services.AddScoped<IPayoutService, PayoutService>();
         services.AddScoped<IGrapherService, GrapherService>();
         services.AddScoped<IReviewService, ReviewService>();
         services.AddScoped<IBootstrapService, BootstrapService>();
@@ -54,3 +56,5 @@ public static class DependencyInjection
         return services;
     }
 }
+
+

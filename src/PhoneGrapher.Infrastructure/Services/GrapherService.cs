@@ -255,14 +255,87 @@ public sealed class GrapherService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task ApproveKycAsync(Guid grapherProfileId, bool approved, CancellationToken cancellationToken = default)
+    public async Task ApproveKycAsync(Guid grapherProfileId, bool approved, string? rejectReason = null, CancellationToken cancellationToken = default)
     {
         var profile = await dbContext.GrapherProfiles.FirstOrDefaultAsync(x => x.Id == grapherProfileId, cancellationToken)
             ?? throw new InvalidOperationException("Grapher profile not found.");
 
         profile.KycStatus = approved ? KycStatus.Approved : KycStatus.Rejected;
         profile.IsVerified = approved;
+        profile.KycRejectReason = approved ? null : rejectReason;
         profile.UpdatedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SubmitApplicationAsync(Guid userId, SubmitApplicationRequest request, CancellationToken cancellationToken = default)
+    {
+        // ── Input validation ────────────────────────────────────────────────
+        if (string.IsNullOrWhiteSpace(request.Bio) || request.Bio.Trim().Length < 10)
+            throw new InvalidOperationException("Giới thiệu bản thân phải có ít nhất 10 ký tự.");
+
+        if (string.IsNullOrWhiteSpace(request.Location) || request.Location.Trim().Length < 2)
+            throw new InvalidOperationException("Khu vực hoạt động không được để trống.");
+
+        if (string.IsNullOrWhiteSpace(request.Specialization))
+            throw new InvalidOperationException("Vui lòng chọn chuyên môn chính.");
+
+        // ── Load or create profile ──────────────────────────────────────────
+        var profile = await dbContext.GrapherProfiles
+            .Include(p => p.PortfolioItems)
+            .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
+
+        if (profile is null)
+        {
+            // Auto-create profile for newly registered graphers
+            profile = new GrapherProfile
+            {
+                UserId = userId,
+                Bio = string.Empty,
+                Location = string.Empty,
+                KycStatus = KycStatus.NotSubmitted
+            };
+            dbContext.GrapherProfiles.Add(profile);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        if (profile.KycStatus == KycStatus.Pending)
+            throw new InvalidOperationException("Hồ sơ đang chờ duyệt, không thể gửi lại.");
+
+        if (profile.KycStatus == KycStatus.Approved)
+            throw new InvalidOperationException("Hồ sơ đã được duyệt.");
+
+        // Update profile fields
+        profile.Bio = request.Bio.Trim();
+        profile.Location = request.Location.Trim();
+        profile.District = request.District?.Trim();
+        profile.ExperienceYears = request.ExperienceYears;
+        profile.Specialization = request.Specialization?.Trim();
+        profile.CvFileUrl = request.CvFileUrl;
+        profile.ExternalLinks = request.ExternalLinks is { Length: > 0 }
+            ? System.Text.Json.JsonSerializer.Serialize(request.ExternalLinks)
+            : null;
+        profile.KycStatus = KycStatus.Pending;
+        profile.KycRejectReason = null;
+        profile.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // Update portfolio images
+        if (request.PortfolioImageUrls is { Length: > 0 })
+        {
+            // Remove existing portfolio items
+            dbContext.GrapherPortfolioItems.RemoveRange(profile.PortfolioItems);
+
+            // Add new ones
+            for (var i = 0; i < request.PortfolioImageUrls.Length; i++)
+            {
+                dbContext.GrapherPortfolioItems.Add(new Domain.Entities.GrapherPortfolioItem
+                {
+                    GrapherProfileId = profile.Id,
+                    ImageUrl = request.PortfolioImageUrls[i],
+                    DisplayOrder = i
+                });
+            }
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

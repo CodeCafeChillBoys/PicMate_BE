@@ -79,14 +79,23 @@ public sealed class AdminController(
     }
 
     /// <summary>Duyệt hoặc từ chối KYC của một grapher.</summary>
-    [HttpPost("graphers/{grapherProfileId:guid}/kyc")]
+    [HttpPost("graphers/{id:guid}/kyc")]
     public async Task<IActionResult> ApproveGrapherKyc(
-        Guid grapherProfileId,
-        [FromQuery] bool approved,
+        Guid id,
+        [FromBody] KycDecisionRequest request,
         CancellationToken cancellationToken)
     {
-        await grapherService.ApproveKycAsync(grapherProfileId, approved, cancellationToken);
+        await grapherService.ApproveKycAsync(id, request.Approved, request.RejectReason, cancellationToken);
         return NoContent();
+    }
+
+    /// <summary>Xem chi tiết đơn xét duyệt của một grapher.</summary>
+    [HttpGet("graphers/{id:guid}/application")]
+    public async Task<ActionResult<AdminPendingGrapherDetailResponse>> GetPendingGrapherDetail(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await adminService.GetPendingGrapherDetailAsync(id, cancellationToken));
     }
 
     // ── Bookings ─────────────────────────────────────────────────────────────
@@ -188,6 +197,24 @@ public sealed class AdminController(
         CancellationToken cancellationToken)
     {
         return Ok(await adminService.ResolveDisputeAsync(disputeId, request, cancellationToken));
+    }
+
+    /// <summary>Phân tích tranh chấp bằng AI Gemini.</summary>
+    [HttpGet("disputes/{disputeId:guid}/ai-analysis")]
+    public async Task<ActionResult<AdminDisputeAiAnalysisResponse>> GetDisputeAiAnalysis(
+        Guid disputeId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await adminService.AnalyzeDisputeWithAiAsync(disputeId, cancellationToken));
+    }
+
+    /// <summary>Lấy lịch sử hội thoại chat giữa khách hàng và thợ chụp.</summary>
+    [HttpGet("disputes/{disputeId:guid}/chat-log")]
+    public async Task<ActionResult<IReadOnlyList<ChatMessageResponse>>> GetDisputeChatLog(
+        Guid disputeId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await adminService.GetDisputeChatLogAsync(disputeId, cancellationToken));
     }
 
     // ── System Settings ───────────────────────────────────────────────────────
