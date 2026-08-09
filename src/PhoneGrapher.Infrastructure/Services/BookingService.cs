@@ -431,6 +431,10 @@ public sealed class BookingService(
             }
         }
 
+        var dispute = await dbContext.Disputes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.BookingId == bookingId, cancellationToken);
+
         return new BookingDetailResponse(
             booking.Id,
             booking.GrapherProfile.User.FullName,
@@ -445,7 +449,13 @@ public sealed class BookingService(
             booking.PlatformFeeAmount,
             booking.GrapherPayoutAmount,
             booking.CreatedAt,
-            booking.CancellationReason);
+            booking.CancellationReason,
+            dispute is not null,
+            dispute?.Status.ToString(),
+            dispute?.Reason,
+            dispute?.AdminNote,
+            dispute?.Resolution,
+            dispute?.ResolvedAt);
     }
 
     public async Task CancelBookingAsync(Guid bookingId, Guid userId, CancelBookingRequest request, CancellationToken cancellationToken = default)

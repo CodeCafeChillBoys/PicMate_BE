@@ -137,4 +137,20 @@ public sealed class GraphersController(IGrapherService grapherService) : Control
             return NotFound(new { Error = ex.Message });
         }
     }
+    [HttpPost("me/application")]
+    [Authorize(Roles = "Grapher")]
+    public async Task<IActionResult> SubmitApplication(
+        [FromBody] SubmitApplicationRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await grapherService.SubmitApplicationAsync(User.GetUserId(), request, cancellationToken);
+            return Ok(new { message = "Đã gửi đơn xét duyệt thành công." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Error = ex.Message });
+        }
+    }
 }

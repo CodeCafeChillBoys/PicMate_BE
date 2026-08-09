@@ -24,7 +24,13 @@ public sealed record BookingDetailResponse(
     decimal PlatformFeeAmount,
     decimal GrapherPayoutAmount,
     DateTimeOffset CreatedAt,
-    string? CancellationReason);
+    string? CancellationReason,
+    bool HasDispute = false,
+    string? DisputeStatus = null,
+    string? DisputeReason = null,
+    string? DisputeAdminNote = null,
+    string? DisputeResolution = null,
+    DateTimeOffset? DisputeResolvedAt = null);
 
 public sealed record BookingResponse(
     Guid Id,
