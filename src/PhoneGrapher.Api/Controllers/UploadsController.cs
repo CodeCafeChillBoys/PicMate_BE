@@ -30,12 +30,27 @@ public sealed class UploadsController : ControllerBase
                 return BadRequest(new { Error = "No file uploaded." });
             }
 
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".gif", ".bmp" };
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            if (string.IsNullOrEmpty(extension))
+            {
+                extension = file.ContentType?.ToLowerInvariant() switch
+                {
+                    "image/jpeg" => ".jpg",
+                    "image/png" => ".png",
+                    "image/webp" => ".webp",
+                    "image/heic" => ".heic",
+                    "image/heif" => ".heif",
+                    "image/gif" => ".gif",
+                    "image/bmp" => ".bmp",
+                    _ => ""
+                };
+            }
 
             if (!allowedExtensions.Contains(extension))
             {
-                return BadRequest(new { Error = "Invalid file type. Only JPG, PNG, and WEBP are allowed." });
+                return BadRequest(new { Error = "Invalid file type. Only JPG, PNG, WEBP, and HEIC/HEIF images are allowed." });
             }
 
             if (file.Length > 10 * 1024 * 1024)

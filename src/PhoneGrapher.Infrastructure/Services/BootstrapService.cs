@@ -67,9 +67,9 @@ public sealed class BootstrapService(
         // Calculate total photos: portfolio items + completed bookings * 25 (average photos per booking)
         var totalPhotos = portfolioCount + (completedBookings * 25);
 
-        // Apply a baseline offset if they are too low to make the empty state look realistic
-        if (totalGraphers < 120) totalGraphers += 120;
-        if (totalPhotos < 1500) totalPhotos += 1500;
+        // Apply a baseline offset (124+ Phone Graphers, 1660+ Ảnh đã chụp) so stats auto-increase with project activity
+        totalGraphers += 124;
+        totalPhotos += 1660;
 
         var avgRating = await dbContext.GrapherProfiles
             .Where(x => x.IsVerified && x.User.IsActive)
