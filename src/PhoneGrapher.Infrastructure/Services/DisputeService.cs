@@ -58,7 +58,10 @@ public sealed class DisputeService(
             RespondentId = respondentId,
             Reason = request.Reason.Trim(),
             Status = DisputeStatus.Pending,
-            Priority = priority
+            Priority = priority,
+            EvidenceImageUrls = request.EvidenceImageUrls is { Length: > 0 }
+                ? System.Text.Json.JsonSerializer.Serialize(request.EvidenceImageUrls)
+                : null
         };
         dbContext.Disputes.Add(dispute);
         await dbContext.SaveChangesAsync(cancellationToken);

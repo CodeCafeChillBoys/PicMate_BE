@@ -42,7 +42,13 @@ public sealed record GrapherDetailResponse(
     IReadOnlyList<string> Portfolio,
     IReadOnlyList<ServicePackageResponse> Packages,
     IReadOnlyList<ActivityAreaResponse> ActivityAreas,
-    IReadOnlyList<GrapherReviewResponse> Reviews);
+    IReadOnlyList<GrapherReviewResponse> Reviews,
+    string? KycStatus = null,
+    string? KycRejectReason = null,
+    int? ExperienceYears = null,
+    string? Specialization = null,
+    string? CvFileUrl = null,
+    string[]? ExternalLinks = null);
 
 public sealed record ServicePackageResponse(
     Guid Id,
@@ -293,16 +299,32 @@ public sealed record AdminDisputeResponse(
     string? Resolution,
     decimal BookingAmount,
     string CreatedAt,
-    string? ResolvedAt);
+    string? ResolvedAt,
+    string[] EvidenceImageUrls);
 
 public sealed record CreateDisputeRequest(
     Guid BookingId,
     string Reason,
-    string Priority);        // 'Medium' | 'High' | 'Urgent'
+    string Priority,
+    string[]? EvidenceImageUrls = null);        // 'Medium' | 'High' | 'Urgent'
 
 public sealed record ResolveDisputeRequest(
-    string Action,           // 'refund' | 'warning' | 'resolved'
-    string? AdminNote);
+    string Action,           // 'refund' | 'warning' | 'resolved' | 'split'
+    string? AdminNote,
+    int? RefundPercent = null);
+
+public sealed record AdminDisputeAiAnalysisResponse(
+    string Summary,
+    string ChatSentiment,
+    string AiRecommendation);
+
+public sealed record ChatMessageResponse(
+    Guid Id,
+    Guid SenderId,
+    string SenderName,
+    string Content,
+    string CreatedAt,
+    bool IsFromCustomer);
 
 // ── Admin – System Settings ────────────────────────────────────────────────
 
@@ -382,3 +404,37 @@ public sealed record AdminBookingDetailResponse(
     DateTimeOffset CreatedAt,
     string? CancellationReason,
     PhoneGrapher.Application.Dtos.PaymentTransactionResponse? Payment);
+
+// ── Grapher Application ────────────────────────────────────────────────────
+
+public sealed record SubmitApplicationRequest(
+    string Bio,
+    string Location,
+    string? District,
+    int ExperienceYears,
+    string Specialization,
+    string? CvFileUrl,
+    string[]? PortfolioImageUrls,
+    string[]? ExternalLinks);
+
+public sealed record KycDecisionRequest(bool Approved, string? RejectReason);
+
+public sealed record AdminPendingGrapherDetailResponse(
+    Guid Id,
+    Guid UserId,
+    string Name,
+    string Email,
+    string? Phone,
+    string? Avatar,
+    string Bio,
+    string Location,
+    int? ExperienceYears,
+    string? Specialization,
+    string? CvFileUrl,
+    string[] ExternalLinks,
+    string[] Styles,
+    string[] PortfolioImages,
+    string AppliedDate,
+    string? KycRejectReason);
+
+

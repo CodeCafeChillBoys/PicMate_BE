@@ -23,6 +23,7 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
     public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<UserFavoriteGrapher> UserFavoriteGraphers => Set<UserFavoriteGrapher>();
+    public DbSet<PayoutRequest> PayoutRequests => Set<PayoutRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,13 +57,13 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
             entity.HasIndex(x => x.UserId).IsUnique();
             entity.HasIndex(x => x.Location);
             entity.HasIndex(x => new { x.IsVerified, x.AverageRating });
-            entity.HasIndex(x => x.CccdNumber).IsUnique().HasFilter("\"CccdNumber\" IS NOT NULL");
             entity.Property(x => x.Bio).HasMaxLength(2000);
             entity.Property(x => x.Location).HasMaxLength(120).IsRequired();
             entity.Property(x => x.District).HasMaxLength(120);
-            entity.Property(x => x.CccdNumber).HasMaxLength(32);
-            entity.Property(x => x.CccdFrontImageUrl).HasMaxLength(1024);
-            entity.Property(x => x.CccdBackImageUrl).HasMaxLength(1024);
+            entity.Property(x => x.CvFileUrl).HasMaxLength(1024);
+            entity.Property(x => x.Specialization).HasMaxLength(120);
+            entity.Property(x => x.ExternalLinks).HasMaxLength(4000);
+            entity.Property(x => x.KycRejectReason).HasMaxLength(1000);
             entity.Property(x => x.KycStatus).HasConversion<string>().HasMaxLength(32);
             entity.Property(x => x.AverageRating).HasPrecision(3, 2);
             entity.HasOne(x => x.User)
@@ -159,7 +160,6 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
             entity.Property(x => x.ProviderTransactionId).HasMaxLength(128);
             entity.Property(x => x.ProviderResponseCode).HasMaxLength(32);
             entity.Property(x => x.VerificationNote).HasMaxLength(500);
-            // Phục vụ hàng đợi đối soát và job dọn đơn quá hạn: cả hai đều lọc theo đúng hai cột này.
             entity.HasIndex(x => new { x.Provider, x.Status });
             entity.Property(x => x.Amount).HasPrecision(18, 2);
             entity.Property(x => x.PlatformFeeAmount).HasPrecision(18, 2);
@@ -358,3 +358,4 @@ public sealed class PhoneGrapherDbContext(DbContextOptions<PhoneGrapherDbContext
         });
     }
 }
+

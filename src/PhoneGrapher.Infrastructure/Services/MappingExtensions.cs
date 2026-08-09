@@ -100,6 +100,12 @@ internal static class MappingExtensions
                 .OrderBy(x => x.City)
                 .Select(x => new ActivityAreaResponse(x.Id, x.City, x.District))
                 .ToArray(),
-            reviews ?? []);
+            reviews ?? [],
+            profile.KycStatus.ToString(),
+            profile.KycRejectReason,
+            profile.ExperienceYears,
+            profile.Specialization,
+            profile.CvFileUrl,
+            string.IsNullOrWhiteSpace(profile.ExternalLinks) ? null : System.Text.Json.JsonSerializer.Deserialize<string[]>(profile.ExternalLinks));
     }
 }
